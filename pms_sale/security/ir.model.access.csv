@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pms_property_reservation,access_pms_property_reservation,model_pms_property_reservation,base.group_user,1,1,1,0
+access_pms_mail,access_pms_mail,model_pms_mail,base.group_user,1,1,1,0
+access_pms_reservation_guest,access_pms_reservation_guest,model_pms_reservation_guest,base.group_user,1,1,1,0
+access_pms_reservation,access_pms_reservation,model_pms_reservation,base.group_user,1,1,1,0
+access_pms_configurator,access_pms_configurator,model_pms_configurator,base.group_user,1,1,1,0
+access_pms_reservation_guest_wizard,access_pms_reservation_guest_wizard,model_pms_reservation_guest_wizard,base.group_user,1,1,1,0
