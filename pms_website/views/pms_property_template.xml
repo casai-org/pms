@@ -1,0 +1,223 @@
+<odoo>
+
+    <template id="property" name="Property" track="1">
+        <t t-call="website.layout">
+            <t t-set="additional_title" t-value="property.name" />
+             <div
+                class="oe_structure oe_empty"
+                id="oe_structure_website_sale_property_1"
+            />
+            <div
+                itemscope="itemscope"
+                itemtype="http://schema.org/Product"
+                id="wrap"
+                class="js_sale"
+            >
+                <section
+                    t-attf-class="container py-2 oe_website_sale"
+                    id="product_detail"
+                    t-att-data-view-track="view_track and '1' or '0'"
+                >
+                    <div class="row">
+                        <div class="col-md-4">
+                            <ol class="breadcrumb">
+                                <li class="breadcrumb-item">
+                                    <a t-att-href="keep()">Property</a>
+                                </li>
+                                <li class="breadcrumb-item active">
+                                    <span t-field="property.name" />
+                                </li>
+                            </ol>
+                        </div>
+                        <div class="col-md-8">
+                            <!-- <div class="form-inline justify-content-end">
+                                <t t-call="website_sale.search">
+                                    <t t-set="search" t-value="False"/>
+                                </t>
+                                <t t-call="website_sale.pricelist_list">
+                                    <t t-set="_classes" t-valuef="ml-2"/>
+                                </t>
+                            </div> -->
+                        </div>
+                    </div>
+                    <div
+                        class="oe_structure oe_empty"
+                        id="oe_structure_website_sale_property_3"
+                    />
+                    <div class="row">
+                            <div
+                            id="o-carousel-product"
+                            class="carousel slide"
+                            data-ride="carousel"
+                            data-interval="0"
+                        >
+                                <div
+                                t-field="property.image_1920"
+                                class="d-flex align-items-center justify-content-center h-100"
+                                t-options='{"widget": "image", "preview_image": "image_1024", "class": "product_detail_img mh-100", "alt-field": "name", "itemprop": "image"}'
+                            />
+                            </div>
+                            <!-- <t t-call="website_sale.shop_product_carousel"/> -->
+                            <!-- <div id="o-carousel-product" class="carousel slide" data-ride="carousel" data-interval="0">
+                                <div class="carousel-outer position-relative">
+                                    <div class="carousel-inner h-100">
+                                        <div t-attf-class="carousel-item h-100#{' active' if product_image_first else ''}">
+
+                                            <div t-field="property.image_1920" class="d-flex align-items-center justify-content-center h-100" t-options='{"widget": "image", "preview_image": "image_1024", "class": "product_detail_img mh-100", "alt-field": "name", "itemprop": "image"}'/>
+                                        </div>
+                                    </div>
+                                    <t t-if="len(property.ids) > 1">
+                                        <a class="carousel-control-prev" href="#o-carousel-product" role="button" data-slide="prev">
+                                            <span class="fa fa-chevron-left p-2" role="img" aria-label="Previous" title="Previous"/>
+                                        </a>
+                                        <a class="carousel-control-next" href="#o-carousel-product" role="button" data-slide="next">
+                                            <span class="fa fa-chevron-right p-2" role="img" aria-label="Next" title="Next"/>
+                                        </a>
+                                    </t>
+                                </div>
+                            </div> -->
+                        <!-- </div> -->
+
+                             <!-- <h3
+
+                            ></h3> -->
+                            <!-- <form t-if="product._is_add_to_cart_possible()" action="/shop/cart/update" method="POST">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()" />
+                                <div class="js_product js_main_product">
+                                    <t t-placeholder="select">
+                                        <input type="hidden" class="product_id" name="product_id" t-att-value="product_variant.id" />
+                                        <input type="hidden" class="product_template_id" name="product_template_id" t-att-value="product.id" />
+                                        <t t-if="combination" t-call="sale.variants">
+                                            <t t-set="ul_class" t-value="'flex-column'" />
+                                            <t t-set="parent_combination" t-value="None" />
+                                        </t>
+                                        <t t-else="">
+                                            <ul class="d-none js_add_cart_variants" t-att-data-attribute_exclusions="{'exclusions: []'}"/>
+                                        </t>
+                                    </t>
+                                    <t t-call="website_sale.product_price" />
+                                    <p t-if="True" class="css_not_available_msg alert alert-warning">This combination does not exist.</p>
+                                    <a role="button" id="add_to_cart" class="btn btn-primary btn-lg mt16 js_check_product a-submit d-block d-sm-inline-block" href="#"><i class="fa fa-shopping-cart"/> Add to Cart</a>
+                                    <div id="product_option_block"/>
+                                </div>
+                            </form> -->
+                            <!-- <p t-elif="not product.active" class="alert alert-warning">This product is no longer available.</p>
+                            <p t-else="" class="alert alert-warning">This product has no valid combination.</p>
+                            <hr t-if="product.description_sale" /> -->
+                            <!-- <div>
+                                <p t-field="product.description_sale" class="text-muted mt-3" placeholder="A short description that will also appear on documents." />
+                                <div id="product_attributes_simple">
+                                    <hr t-if="sum([(1 if len(l.value_ids)==1 else 0) for l in product.attribute_line_ids])"/>
+                                    <p class="text-muted">
+                                        <t t-set="single_value_attributes" t-value="product.valid_product_template_attribute_line_ids._prepare_single_value_for_display()"/>
+                                        <t t-foreach="single_value_attributes" t-as="attribute">
+                                            <span t-field="attribute.name"/>:
+                                            <t t-foreach="single_value_attributes[attribute]" t-as="ptal">
+                                                <span t-field="ptal.product_template_value_ids._only_active().name"/><t t-if="not ptal_last">, </t>
+                                            </t>
+                                            <br/>
+                                        </t>
+                                    </p>
+                                </div>
+                            </div>
+                            <hr /> -->
+                        <!-- </div> -->
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 col-xl-4 pt-3 pb-3 " id="product_details">
+                            <h1
+                                itemprop="name"
+                                t-field="property.name"
+                            >Property Name</h1>
+                            <span
+                                itemprop="url"
+                                style="display:none;"
+                                t-esc="property.website_url"
+                            />
+                            <h4 t-if="property.parent_id">
+                                <i class="fa fa-building" />
+                                <span
+                                    itemprop="parent_name"
+                                    t-field="property.parent_id"
+                                />
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-4">
+                            <ul>
+                             <table>
+                                <t t-foreach="property.room_ids" t-as="room">
+                                    <tr>
+                                        <td><i class="fa fa-bed" /></td>
+                                        <td><h5 t-esc="room.type_id.name" /></td>
+                                    </tr>
+                                </t>
+                                <tr>
+                                                <td><i class="fa fa-home" /></td>
+                                                <td><h5 t-field="property.area" /></td>
+                                                <td t-if="property.no_of_guests"><i
+                                                class="fa fa-users"
+                                            /> </td>
+                                                <td t-if="property.no_of_guests"><h5
+                                                t-field="property.no_of_guests"
+                                            /></td>
+                                            </tr>
+
+                                </table>
+                            </ul>
+                        </div>
+                        <div class="col-4">
+                            <ul>
+                             <table>
+                                <t
+                                        t-if="property.amenity_ids"
+                                        t-foreach="property.amenity_ids"
+                                        t-as="amenity"
+                                    >
+                                                <tr>
+                                                    <td><span
+                                                    class="fa fa-server"
+                                                /></td>
+                                                    <td><h5 t-esc="amenity.name" /></td>
+                                                </tr>
+                                            </t>
+                                </table>
+                            </ul>
+                        </div>
+
+                        <div class="col-4">
+                            <ul>
+                             <table>
+                                <t
+                                        t-if="property.service_ids"
+                                        t-foreach="property.service_ids"
+                                        t-as="service"
+                                    >
+                                                <tr>
+                                                    <td><span class="fa fa-bolt" /></td>
+                                                    <td><h5
+                                                    t-esc="service.name.name"
+                                                /></td>
+                                                </tr>
+                                            </t>
+                                </table>
+                            </ul>
+                        </div>
+                    </div>
+                    <div
+                        class="oe_structure oe_empty"
+                        id="oe_structure_website_sale_property_4"
+                    />
+
+                </section>
+                <!-- <div itemprop="description" t-field="property.website_description" class="oe_structure oe_empty mt16" id="product_full_description"/> -->
+            </div>
+            <div
+                class="oe_structure oe_empty"
+                id="oe_structure_website_sale_property_2"
+            />
+        </t>
+    </template>
+
+</odoo>
