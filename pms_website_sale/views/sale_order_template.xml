@@ -1,0 +1,189 @@
+<odoo>
+
+    <template
+        id="sale_order_portal_content"
+        inherit_id="sale.sale_order_portal_content"
+        name="Sales Order Portal Content"
+    >
+        <xpath expr="//tbody[hasclass('sale_tbody')]//tr/t[1]/td[1]" position="inside">
+            <td>
+                <t t-if="line.property_id">
+                    <a t-att-href="line.property_id.website_url" target="_blank"><t
+                            t-esc="line.property_id.name"
+                        /></a>
+                </t>
+            </td>
+        </xpath>
+        <xpath expr="//table[@id='sales_order_table']//thead/tr/th[1]" position="inside">
+            <th>Property</th>
+        </xpath>
+    </template>
+
+    <!-- make grid view of template -->
+    <template id="property_item" name="Property">
+        <t
+            t-set="product_href"
+            t-value="keep(product.website_url, page=(pager['page']['num'] if pager['page']['num']&gt;1 else None))"
+        />
+
+        <form
+            action="/shop/cart/update"
+            method="post"
+            class="card oe_product_cart"
+            t-att-data-publish="product.website_published and 'on' or 'off'"
+            itemscope="itemscope"
+            itemtype="http://schema.org/Product"
+        >
+            <div class="card-body p-1 oe_product_image">
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    t-att-value="request.csrf_token()"
+                />
+                <a t-att-href="product_href" class="d-block h-100" itemprop="url">
+                    <t t-set="image_holder" t-value="product" />
+                    <span
+                        t-field="image_holder.image_1920"
+                        t-options="{'widget': 'image', 'preview_image': 'image_1024' if product_image_big else 'image_256', 'itemprop': 'image'}"
+                        class="d-flex h-100 justify-content-center align-items-center"
+                    />
+                </a>
+            </div>
+            <div class="card-body p-0 text-center o_wsale_product_information">
+                <div class="p-2 o_wsale_product_information_text">
+                    <h6 class="o_wsale_products_item_title">
+                        <a
+                            itemprop="name"
+                            t-att-href="product_href"
+                            t-att-content="product.name"
+                            t-field="product.name"
+                        />
+                        <a
+                            role="button"
+                            t-if="not product.website_published"
+                            t-att-href="product_href"
+                            class="btn btn-sm btn-danger"
+                            title="This product is unpublished."
+                        >Unpublished</a>
+                    </h6>
+                    <!-- <div class="product_price" itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer">
+                        <del t-attf-class="text-danger mr-2 {{'' if combination_info['has_discounted_price'] else 'd-none'}}" style="white-space: nowrap;" t-esc="combination_info['list_price']" t-options="{'widget': 'monetary', 'display_currency': website.currency_id}" />
+                        <span t-if="combination_info['price']" t-esc="combination_info['price']" t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                        <span itemprop="price" style="display:none;" t-esc="combination_info['price']" />
+                        <span itemprop="priceCurrency" style="display:none;" t-esc="website.currency_id.name" />
+                    </div> -->
+                </div>
+                <div class="o_wsale_product_btn" />
+            </div>
+            <!-- <t t-set="bg_color" t-value="td_product['ribbon']['bg_color'] or ''"/> -->
+            <!-- <t t-set="text_color" t-value="td_product['ribbon']['text_color']"/> -->
+            <!-- <t t-set="bg_class" t-value="td_product['ribbon']['html_class']"/> -->
+            <!-- <span t-attf-class="o_ribbon #{bg_class}" t-attf-style="#{text_color and ('color: %s; ' % text_color)}#{bg_color and 'background-color:' + bg_color}" t-raw="td_product['ribbon']['html'] or ''"/> -->
+        </form>
+    </template>
+
+     <!-- /property listing -->
+    <template id="properties" name="Properties">
+        <t t-call="website.layout">
+            <t t-set="additional_title">Properties</t>
+            <div id="wrap" class="js_sale">
+                <div
+                    class="oe_structure oe_empty"
+                    id="oe_structure_website_sale_products_1"
+                />
+                <div class="container oe_website_sale">
+                    <div
+                        class="products_pager form-inline flex-md-nowrap justify-content-between justify-content-md-center"
+                    >
+                        <t t-call="website.pager">
+                            <t t-set="_classes" t-valuef="mt-2 ml-md-2" />
+                        </t>
+                    </div>
+                    <div class="row o_wsale_products_main_row">
+                        <div
+                            t-if="enable_left_column"
+                            id="products_grid_before"
+                            class="col-lg-3"
+                        />
+                        <div
+                            id="products_grid"
+                            t-attf-class="col #{'o_wsale_layout_list' if layout_mode == 'list' else ''}"
+                        >
+                            <div
+                                t-if="bins"
+                                class="o_wsale_products_grid_table_wrapper"
+                            >
+                                <table
+                                    class="table table-borderless m-0"
+                                    t-att-data-ppg="ppg"
+                                    t-att-data-ppr="ppr"
+                                >
+                                    <colgroup t-ignore="true">
+                                        <col t-foreach="ppr" t-as="p" />
+                                    </colgroup>
+                                    <tbody>
+                                        <tr>
+                                            <t t-foreach="bins" t-as="tr_product">
+                                                <t
+                                                    t-set="product"
+                                                    t-value="tr_product"
+                                                />
+                                                <td t-attf-class="oe_product">
+                                                    <div
+                                                        t-attf-class="o_wsale_product_grid_wrapper o_wsale_product_grid_wrapper_1_1"
+                                                    >
+                                                        <t
+                                                            t-call="pms_website_sale.property_item"
+                                                        >
+                                                            <t
+                                                                t-set="product_image_big"
+                                                                t-value="1 + 1 &gt; 2"
+                                                            />
+                                                        </t>
+                                                    </div>
+                                                </td>
+                                            </t>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <t t-else="">
+                                <div class="text-center text-muted">
+                                    <t t-if="not search">
+                                        <h3 class="mt8">No Property defined</h3>
+                                        <p
+                                            t-if="category"
+                                        >No property defined in category "<strong
+                                                t-esc="category.display_name"
+                                            />".</p>
+                                    </t>
+                                    <t t-else="">
+                                        <h3 class="mt8">No results</h3>
+                                        <p>No results for "<strong t-esc='search' />"<t
+                                                t-if="category"
+                                            > in category "<strong
+                                                    t-esc="category.display_name"
+                                                />"</t>.</p>
+                                    </t>
+                                    <p
+                                        t-ignore="true"
+                                        groups="sales_team.group_sale_manager"
+                                    >Click <i
+                                        >'New'</i> in the top-right corner to create your first property.</p>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                    <div class="products_pager form-inline justify-content-center py-3">
+                        <t t-call="website.pager" />
+                    </div>
+                </div>
+                <div
+                    class="oe_structure oe_empty"
+                    id="oe_structure_website_sale_products_2"
+                />
+            </div>
+        </t>
+    </template>
+
+</odoo>
