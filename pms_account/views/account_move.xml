@@ -12,6 +12,7 @@
                     type="object"
                     class="oe_stat_button"
                     icon="fa-map"
+                    attrs="{'invisible': [('property_count', '=', 0)]}"
                 >
                     <field
                         name="property_count"
@@ -20,6 +21,18 @@
                     />
                 </button>
             </div>
+            <xpath
+                expr="//field[@name='invoice_line_ids']/form//field[@name='name']"
+                position="after"
+            >
+                <group>
+                    <field
+                        name="property_ids"
+                        widget="many2many_tags"
+                        groups="pms_base.group_pms_user"
+                    />
+                </group>
+            </xpath>
         </field>
     </record>
 

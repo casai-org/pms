@@ -4,8 +4,6 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 from odoo import api, fields, models
 
-from odoo.addons.base.models.res_partner import _tz_get
-
 
 class AccountMove(models.Model):
     _inherit = "account.move"
@@ -33,6 +31,8 @@ class AccountMove(models.Model):
         if self.property_count > 1:
             action["domain"] = [("id", "in", self.property_ids.ids)]
         elif self.property_ids:
-            action["views"] = [(self.env.ref("pms_base.view_pms_property_form").id, "form")]
+            action["views"] = [
+                (self.env.ref("pms_base.view_pms_property_form").id, "form")
+            ]
             action["res_id"] = self.property_ids[0].id
         return action
