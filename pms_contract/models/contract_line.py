@@ -14,5 +14,7 @@ class ContractLine(models.Model):
     )
 
     def _prepare_invoice_line(self, move_form):
-        res = super()._prepare_invoice_line(move_form=move_form)
-        return res.update({"property_id": self.property_id.id})
+        invoice_line_vals = super()._prepare_invoice_line(move_form=move_form)
+        if self.property_id:
+            invoice_line_vals.update({"property_ids": [(6, 0, self.property_id.ids)]})
+        return invoice_line_vals
