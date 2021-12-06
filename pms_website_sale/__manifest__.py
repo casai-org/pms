@@ -18,7 +18,6 @@
         "data/data.xml",
         "security/ir.model.access.csv",
         "security/pms_security.xml",
-        "views/sale_order_template.xml",
-        # "views/pms_property.xml",
+        "views/property_template.xml",
     ],
 }

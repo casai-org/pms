@@ -14,7 +14,10 @@
                 </t>
             </td>
         </xpath>
-        <xpath expr="//table[@id='sales_order_table']//thead/tr/th[1]" position="inside">
+        <xpath
+            expr="//table[@id='sales_order_table']//thead/tr/th[1]"
+            position="inside"
+        >
             <th>Property</th>
         </xpath>
     </template>
@@ -95,6 +98,9 @@
                     <div
                         class="products_pager form-inline flex-md-nowrap justify-content-between justify-content-md-center"
                     >
+                        <t t-call="website.website_search_box">
+                            <t t-set="_classes" t-valuef="w-100 w-md-auto mt-2" />
+                        </t>
                         <t t-call="website.pager">
                             <t t-set="_classes" t-valuef="mt-2 ml-md-2" />
                         </t>
@@ -122,13 +128,17 @@
                                         <col t-foreach="ppr" t-as="p" />
                                     </colgroup>
                                     <tbody>
-                                        <tr>
-                                            <t t-foreach="bins" t-as="tr_product">
+                                        <tr t-foreach="bins" t-as="tr_product">
+                                            <t t-foreach="tr_product" t-as="td_product">
                                                 <t
                                                     t-set="product"
-                                                    t-value="tr_product"
+                                                    t-value="td_product['product']"
                                                 />
-                                                <td t-attf-class="oe_product">
+                                                <td
+                                                    t-attf-class="oe_product"
+                                                    t-att-colspan="td_product['x'] != 1 and td_product['x']"
+                                                    t-att-rowspan="td_product['y'] != 1 and td_product['y']"
+                                                >
                                                     <div
                                                         t-attf-class="o_wsale_product_grid_wrapper o_wsale_product_grid_wrapper_1_1"
                                                     >
@@ -137,7 +147,7 @@
                                                         >
                                                             <t
                                                                 t-set="product_image_big"
-                                                                t-value="1 + 1 &gt; 2"
+                                                                t-value="1 + 1 &gt;                                        2"
                                                             />
                                                         </t>
                                                     </div>
