@@ -15,6 +15,7 @@
     ],
     "data": [
         "security/ir.model.access.csv",
+        "data/rule.xml",
         "views/pms_property_template.xml",
         "views/pms_property.xml",
     ],
