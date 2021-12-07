@@ -139,7 +139,7 @@
                                                     <td>
                                                         <div class="pt-0 pr-3">
                                                             <span
-                                                        t-attf-class="{{service.type_id.icon}}"
+                                                        t-attf-class="{{service.icon}}"
                                                     />
                                                         </div>
                                                     </td>
