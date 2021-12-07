@@ -59,7 +59,7 @@
                             </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 col-xl-4 pt-3 pb-3 " id="product_details">
+                        <div class="col-md-12 pt-3 pb-3 " id="product_details">
                             <h1
                                 itemprop="name"
                                 t-field="property.name"
@@ -79,40 +79,52 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-4">
+                        <div t-if="property.qty_living_room" class="col-6">
                             <ul
                                 class="list-group direction-vertical "
                                 style="font-size: 15px;line-height: 20px;"
                             >
                              <table>
-                                <t t-foreach="property.room_ids" t-as="room">
+
                                     <tr>
-                                        <td>
+                                        <td t-if="property.qty_living_room">
                                             <div class="pt-0 pr-3">
-                                                <span
-                                                        t-attf-class="{{room.type_id.icon}}"
-                                                    />
+                                                <t
+                                                    t-set="icon"
+                                                    t-value="env.ref('pms_base.pms_room_type_living').icon"
+                                                />
+                                                <!-- <t t-foreach="property.room_ids" t-as="room"> -->
+                                                <span t-attf-class="{{icon}}" />
+                                                <!-- </t> -->
                                             </div>
                                         </td>
-                                        <td><span
-                                                    style="font-size: 20px; line-height: 40px;"
-                                                    t-esc="room.capacity"
-                                                />:<span
-                                                    style="font-size: 20px;"
-                                                    t-esc="room.name"
-                                                /></td>
-                                    </tr>
-                                </t>
-                                <tr>
-                                    <td>
-                                     <div class="pt-0 pr-3">
-                                                <span class="fa fa-home" />
+
+                                        <td t-if="property.qty_living_room">
+                                            <span
+                                                style="font-size: 20px; line-height: 40px;"
+                                                t-esc="property.qty_living_room"
+                                            /> Bedrooms
+                                        </td>
+
+                                        <td t-if="property.qty_half_bathroom">
+                                            <div class="pt-0 pr-3">
+                                                <t
+                                                    t-set="icon"
+                                                    t-value="env.ref('pms_base.pms_room_type_half_bath').icon"
+                                                />
+                                                <!-- <t t-foreach="property.room_ids" t-as="room"> -->
+                                                <span t-attf-class="{{icon}}" />
+                                                <!-- </t> -->
                                             </div>
-                                </td>
-                                    <td><span t-field="property.area" /> <span
-                                                t-field="property.area_uom_id"
-                                            /></td>
-                                    <td t-if="property.no_of_guests">
+                                        </td>
+
+                                        <td t-if="property.qty_half_bathroom">
+                                            <span
+                                                style="font-size: 20px; line-height: 40px;"
+                                                t-esc="property.qty_half_bathroom"
+                                            /> Bathrooms
+                                        </td>
+                                        <td t-if="property.no_of_guests">
                                         <div class="pt-0 pr-3">
                                             <span class="fa fa-users" />
                                         </div>
@@ -123,6 +135,31 @@
                                                 t-field="property.no_of_guests"
                                             /> Guest(s)
                                     </td>
+
+                                                <!-- <span
+                                                    style="font-size: 20px;"
+                                                    t-esc="room.name"
+                                                /> -->
+                                    </tr>
+
+                                <tr>
+                                    <td>
+                                     <div class="pt-0 pr-3">
+                                                <span class="fa fa-home" />
+                                            </div>
+                                </td>
+                                    <td><span t-field="property.area" /></td>
+                                    <!-- <td t-if="property.no_of_guests">
+                                        <div class="pt-0 pr-3">
+                                            <span class="fa fa-users" />
+                                        </div>
+                                    </td>
+                                    <td t-if="property.no_of_guests">
+                                        <span
+                                                style="font-size: 20px;"
+                                                t-field="property.no_of_guests"
+                                            /> Guest(s)
+                                    </td> -->
                                 </tr>
                             </table>
                             </ul>
@@ -152,39 +189,113 @@
                             </ul>
                         </div>
                     </div>
+                    <div t-if="property.parking_lot" class="section-margin mt-3">
+                        <ul class="list-group direction-vertical">
+                            <li
+                                class="sc-bBHxTw ljStsE list-group-item d-flex p-0  my-2 border-0"
+                            >
+                                <div class="pt-0 pr-3">
+                                    <span class="fa fa-car" />
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="mb-1">
+                                        <h5
+                                            class="mb-0 item-header"
+                                        >Parking Availability</h5>
+                                    </div>
+                                    <div class="mb-1">
+                                        <p
+                                            style="font-size: 15px; line-height:22px;"
+                                        >Free parking spots nearby</p>
+                                    </div>
+                                </div>
+
+                            </li>
+                        </ul>
+                    </div>
                     <div
                         class="oe_structure oe_empty"
                         id="oe_structure_website_sale_property_4"
                     />
 
                 </section>
-               <!--  <section class="row section-margin">
+                <section class="row section-margin">
                     <div class="col-12">
                         <section class="container">
                             <ul class="list-group direction-horizontal row">
-                                <li class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0">
+                                <li
+                                    class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0"
+                                >
                                     <div class="pt-0 pr-3">
-                                        <span class="fa fa-clock-o"/>
+                                        <span class="fa fa-clock-o" />
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="mb-1">
-                                            <p class="mb-0 item-header"> Check in &amp; Check out </p>
+                                            <p
+                                                class="mb-0 item-header"
+                                            > Check in &amp; Check out </p>
                                         </div>
                                         <div class="mb-1">
-                                            <div class="sc-llYSUQ jokoxz d-flex justify-content-between">
+                                            <div class="d-flex justify-content-between">
                                                 <div>
-                                                    <span class="normal">Check in:</span> <span t-field="property.checkin"/>
-                                                    <br/>
-                                                    <span class="normal">Check out:</span> <span t-field="property.checkout"/>
+                                                    <t
+                                                        t-if="(property.checkin &lt; 12.0 or property.checkout &lt; 12.0)"
+                                                    >
+                                                        <t t-set="tz">AM</t>
+                                                    </t>
+                                                    <t
+                                                        t-if="(property.checkin &gt; 12.0 or property.checkout &gt; 12.0)"
+                                                    >
+                                                        <t t-set="tz">PM</t>
+                                                    </t>
+                                                    <span
+                                                        class="normal"
+                                                    >Check in:</span> <span
+                                                        t-field="property.checkin"
+                                                        t-options='{"widget": "float", "precision": 2}'
+                                                    /> <span t-esc="tz" />
+                                                    <br />
+                                                    <span
+                                                        class="normal"
+                                                    >Check out:</span> <span
+                                                        t-field="property.checkout"
+                                                        t-options='{"widget": "float", "precision": 2}'
+                                                    /> <span t-esc="tz" />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </li>
+
+                                <!-- <li class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0">
+                                    <div class="pt-0 pr-3">
+                                        <span class="fa fa-clock-o"/>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="mb-1">
+                                            <p class="mb-0 item-header"> House Rules </p>
+                                        </div>
+                                        <div class="mb-1">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <t t-if="(property.checkin &lt; 12.0 or property.checkout &lt; 12.0)">
+                                                        <t t-set="tz">AM</t>
+                                                    </t>
+                                                    <t t-if="(property.checkin &gt; 12.0 or property.checkout &gt; 12.0)">
+                                                        <t t-set="tz">PM</t>
+                                                    </t>
+                                                    <span class="normal">Check in:</span> <span t-field="property.checkin"/> <span t-esc="tz"/>
+                                                    <br/>
+                                                    <span class="normal">Check out:</span> <span t-field="property.checkout"/> <span t-esc="tz"/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li> -->
                             </ul>
                         </section>
                     </div>
-                </section> -->
+                </section>
                 <section
                     t-attf-class="container py-2 oe_website_sale"
                     id="product_detail"
