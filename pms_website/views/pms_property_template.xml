@@ -89,7 +89,9 @@
                                     <tr>
                                         <td>
                                             <div class="pt-0 pr-3">
-                                                <span class="fa fa-bed" />
+                                                <span
+                                                        t-attf-class="{{room.type_id.icon}}"
+                                                    />
                                             </div>
                                         </td>
                                         <td><span
@@ -136,7 +138,9 @@
                                                 <tr>
                                                     <td>
                                                         <div class="pt-0 pr-3">
-                                                            <span class="fa fa-bolt" />
+                                                            <span
+                                                        t-attf-class="{{room.type_id.icon}}"
+                                                    />
                                                         </div>
                                                     </td>
                                                     <td><h5
