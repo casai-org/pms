@@ -238,6 +238,18 @@ class PmsReservation(models.Model):
                 )
             )
 
+    @api.constrains("property_id.min_nights", "property_id.max_nights", "duration")
+    def _check_no_of_nights(self):
+        if (
+            self.duration > self.property_id.min_nights
+            and self.property_id.max_nights < self.duration
+        ):
+            raise ValidationError(
+                _(
+                    "No of nights is between minimum nights and maximum nights of property."
+                )
+            )
+
     def action_book(self):
         return self.write(
             {
