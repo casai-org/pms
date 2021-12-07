@@ -22,6 +22,65 @@
         </xpath>
     </template>
 
+
+    <template
+        id="pms_website_sale_search_box"
+        inherit_id="website.website_search_box"
+        primary="True"
+    >
+        <xpath expr="//div[@role='search']" position="attributes">
+            <attribute name="t-attf-class" remove="#{_classes}" separator=" " />
+        </xpath>
+        <xpath expr="//div[@role='search']" position="replace">
+            <form
+                t-attf-class="o_wsale_products_searchbar_form o_wait_lazy_js #{_classes}"
+                t-att-action="action if action else '/property'"
+                method="get"
+                t-att-data-snippet="_snippet"
+            >
+                <t>$0</t>
+                <!-- <input name="order" class="o_wsale_search_order_by" value=""/> -->
+                <t t-raw="0" />
+            </form>
+        </xpath>
+    </template>
+
+    <template
+        id="pms_search_box"
+        inherit_id="pms_website_sale.pms_website_sale_search_box"
+    >
+        <xpath expr="//input[@name='search']" position="replace">
+            <input
+                type="search"
+                name="search"
+                class="search-query form-control oe_search_box"
+                placeholder="City..."
+                t-att-value="city"
+            />
+            <input
+                type="search"
+                name="amenity"
+                class="search-query form-control oe_search_box"
+                placeholder="Amenities..."
+                t-att-value="amenity"
+            />
+            <input
+                type="search"
+                name="guest"
+                class="search-query form-control oe_search_box"
+                placeholder="No of Guests..."
+                t-att-value="guest"
+            />
+        </xpath>
+    </template>
+
+    <template id="search" name="Search Box">
+        <t t-call="pms_website_sale.pms_website_sale_search_box">
+             <t t-set="action" t-value="'/property'" />
+        </t>
+    </template>
+
+
     <!-- make grid view of template -->
     <template id="property_item" name="Property">
         <t
@@ -98,7 +157,7 @@
                     <div
                         class="products_pager form-inline flex-md-nowrap justify-content-between justify-content-md-center"
                     >
-                        <t t-call="website.website_search_box">
+                        <t t-call="pms_website_sale.search">
                             <t t-set="_classes" t-valuef="w-100 w-md-auto mt-2" />
                         </t>
                         <t t-call="website.pager">

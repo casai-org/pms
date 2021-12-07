@@ -9,11 +9,7 @@
     "website": "https://github.com/OCA/pms",
     "author": "Open Source Integrators, Odoo Community Association (OCA)",
     "license": "AGPL-3",
-    "depends": [
-        "pms_website",
-        "pms_sale",
-        "website_sale",
-    ],
+    "depends": ["pms_website", "pms_sale", "website_sale"],
     "data": [
         "data/data.xml",
         "security/ir.model.access.csv",

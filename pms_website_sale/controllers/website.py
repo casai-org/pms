@@ -55,11 +55,7 @@ class PropertyTableCompute(object):
             for y2 in range(y):
                 for x2 in range(x):
                     self.table[(pos // ppr) + y2][(pos % ppr) + x2] = False
-            self.table[pos // ppr][pos % ppr] = {
-                "product": p,
-                "x": x,
-                "y": y,
-            }
+            self.table[pos // ppr][pos % ppr] = {"product": p, "x": x, "y": y}
             if index <= ppg:
                 maxy = max(maxy, y + (pos // ppr))
             index += 1
@@ -76,8 +72,16 @@ class PropertyTableCompute(object):
 
 
 class WebsiteSale(WebsiteSale):
-    def _get_property_search_domain(self):
-        return [("property_child_ids", "=", False)]
+    def _get_property_search_domain(self, search, amenity, guest):
+        domain = []
+        if search:
+            domain += [("city", "ilike", search)]
+        if amenity:
+            domain += [("amenity_ids.name", "ilike", amenity)]
+        if guest:
+            domain += [("no_of_guests", ">=", int(guest))]
+        domain += [("property_child_ids", "=", False)]
+        return domain
 
     def _get_pricelist_context(self):
         pricelist_context = dict(request.env.context)
@@ -93,15 +97,12 @@ class WebsiteSale(WebsiteSale):
         return pricelist_context, pricelist
 
     @http.route(
-        [
-            """/property""",
-            """/property/page/<int:page>""",
-        ],
+        ["""/property""", """/property/page/<int:page>"""],
         type="http",
         auth="public",
         website=True,
     )
-    def property(self, page=0, ppg=False, **post):
+    def property(self, page=0, ppg=False, search="", amenity="", guest="", **post):
         if ppg:
             try:
                 ppg = int(ppg)
@@ -113,7 +114,9 @@ class WebsiteSale(WebsiteSale):
 
         ppr = request.env["website"].get_current_website().shop_ppr or 4
 
-        domain = self._get_property_search_domain()
+        domain = self._get_property_search_domain(
+            search=search, amenity=amenity, guest=guest
+        )
 
         keep = QueryURL("/property")
 
@@ -137,6 +140,9 @@ class WebsiteSale(WebsiteSale):
         layout_mode = "grid"
         # properties
         values = {
+            "search": search,
+            "amenity": amenity,
+            "guest": guest,
             "pager": pager,
             "pricelist": pricelist,
             "properties": properties,
