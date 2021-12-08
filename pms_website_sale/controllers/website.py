@@ -140,7 +140,7 @@ class WebsiteSale(WebsiteSale):
         layout_mode = "grid"
         # properties
         values = {
-            "search": search,
+            "city": search,
             "amenity": amenity,
             "guest": guest,
             "pager": pager,
