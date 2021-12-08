@@ -8,6 +8,9 @@
             <div name="button_box" position="inside">
                 <field name="is_published" widget="website_redirect_button" />
             </div>
+            <field name="team_id" position="after">
+                <field name="property_category_id" />
+            </field>
         </field>
     </record>
 

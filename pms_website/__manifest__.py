@@ -16,5 +16,6 @@
         "views/pms_property_template.xml",
         "views/pms_property.xml",
         "views/pms_amenity_views.xml",
+        "views/pms_website_category_views.xml",
     ],
 }

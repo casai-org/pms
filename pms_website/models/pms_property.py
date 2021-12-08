@@ -2,7 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import werkzeug.urls
 
-from odoo import models
+from odoo import fields, models
 
 from odoo.addons.http_routing.models.ir_http import slug
 
@@ -25,3 +25,7 @@ class PmsProperty(models.Model):
             "z": 10,
         }
         return "https://maps.google.com/maps?" + werkzeug.urls.url_encode(params)
+
+    property_category_id = fields.Many2one(
+        string="Category", comodel_name="pms.website.category"
+    )
