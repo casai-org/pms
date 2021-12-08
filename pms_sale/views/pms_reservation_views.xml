@@ -107,6 +107,7 @@
                             </group>
                             <field name="guest_ids" nolabel="1">
                                 <tree string="Guests" editable="bottom">
+                                    <field name="partner_id" />
                                     <field name="name" />
                                     <field name="phone" />
                                     <field name="email" />

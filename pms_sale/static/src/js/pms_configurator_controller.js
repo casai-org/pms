@@ -26,6 +26,9 @@ odoo.define("pms_sale.PMSConfiguratorFormController", function (require) {
                 var guest_ids = [];
                 _.each(state.guest_ids.data, function (data) {
                     if (data.data && data.data.name) {
+                        if (data.data.partner_id) {
+                            data.data.partner_id = data.data.partner_id.data.id;
+                        }
                         guest_ids.push([0, 0, data.data]);
                     }
                 });

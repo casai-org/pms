@@ -139,3 +139,11 @@ class PMSReservationGuestWizard(models.TransientModel):
     phone = fields.Char(string="Phone")
     email = fields.Char(string="Email")
     configurator_id = fields.Many2one("pms.configurator", string="Configurator")
+    partner_id = fields.Many2one("res.partner", string="Partner")
+
+    @api.onchange("partner_id")
+    def _onchange_partner_id(self):
+        if self.partner_id:
+            self.name = self.partner_id.name
+            self.phone = self.partner_id.phone
+            self.email = self.partner_id.email
