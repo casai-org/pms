@@ -69,29 +69,40 @@
                                 style="display:none;"
                                 t-esc="property.website_url"
                             />
-                            <h4 t-if="property.parent_id">
-                                <i class="fa fa-building" />
-                                <span
-                                    itemprop="parent_name"
-                                    t-field="property.parent_id"
-                                />
+                            <h4 class="mt-3" t-if="property.parent_id">
+                                <a
+                                    itemprop="name"
+                                    t-att-href="property.google_map_link()"
+                                    target="_BLANK"
+                                >
+                                    <span t-field="property.city" />
+                                </a>
                             </h4>
                         </div>
                     </div>
                     <div class="row">
-                        <div t-if="property.qty_living_room" class="col-6">
+                        <div t-if="property.qty_living_room" class="col-8">
                             <ul
                                 class="list-group direction-vertical "
                                 style="font-size: 15px;line-height: 20px;"
                             >
                              <table>
+                                    <tr>
+                                        <h5 t-if="property.parent_id">
+                                            <i class="fa fa-building" />
+                                            <span
+                                                itemprop="parent_name"
+                                                t-field="property.parent_id"
+                                            />
+                                        </h5>
+                                    </tr>
 
                                     <tr>
                                         <td t-if="property.qty_living_room">
                                             <div class="pt-0 pr-3">
                                                 <t
                                                     t-set="icon"
-                                                    t-value="env.ref('pms_base.pms_room_type_living').icon"
+                                                    t-value="env.ref('pms_base.pms_room_type_living').sudo().icon"
                                                 />
                                                 <!-- <t t-foreach="property.room_ids" t-as="room"> -->
                                                 <span t-attf-class="{{icon}}" />
@@ -110,7 +121,7 @@
                                             <div class="pt-0 pr-3">
                                                 <t
                                                     t-set="icon"
-                                                    t-value="env.ref('pms_base.pms_room_type_half_bath').icon"
+                                                    t-value="env.ref('pms_base.pms_room_type_half_bath').sudo().icon"
                                                 />
                                                 <!-- <t t-foreach="property.room_ids" t-as="room"> -->
                                                 <span t-attf-class="{{icon}}" />
@@ -143,49 +154,32 @@
                                     </tr>
 
                                 <tr>
+                                    <!-- <td> -->
                                     <td>
-                                     <div class="pt-0 pr-3">
-                                                <span class="fa fa-home" />
-                                            </div>
-                                </td>
-                                    <td><span t-field="property.area" /></td>
-                                    <!-- <td t-if="property.no_of_guests">
                                         <div class="pt-0 pr-3">
-                                            <span class="fa fa-users" />
+                                            <span class="fa fa-home" />
                                         </div>
                                     </td>
-                                    <td t-if="property.no_of_guests">
-                                        <span
-                                                style="font-size: 20px;"
-                                                t-field="property.no_of_guests"
-                                            /> Guest(s)
-                                    </td> -->
+                                    <td><span t-field="property.area" /></td>
                                 </tr>
-                            </table>
-                            </ul>
-                        </div>
-                        <div class="col-4">
-                            <ul>
-                             <table>
+                                <!-- <div class=s"pt-5 pr-0"> -->
                                 <t
                                         t-if="property.service_ids"
-                                        t-foreach="property.service_ids"
+                                        t-foreach="property.sudo().service_ids"
                                         t-as="service"
                                     >
-                                                <tr>
-                                                    <td>
-                                                        <div class="pt-0 pr-3">
-                                                            <span
-                                                        t-attf-class="{{service.icon}}"
-                                                    />
-                                                        </div>
-                                                    </td>
-                                                    <td><h5
-                                                    t-esc="service.name.name"
-                                                /></td>
-                                                </tr>
-                                            </t>
-                                </table>
+                                <tr>
+                                    <td>
+                                        <div class="pt-0 pr-3">
+                                            <span t-attf-class="{{service.icon}}" />
+                                        </div>
+                                    </td>
+                                    <td class="w-25">
+                                        <span t-esc="service.name.name" />
+                                    </td>
+                                </tr>
+                                </t>
+                            </table>
                             </ul>
                         </div>
                     </div>
@@ -222,7 +216,10 @@
                 <section class="row section-margin">
                     <div class="col-12">
                         <section class="container">
-                            <ul class="list-group direction-horizontal row">
+                            <ul
+                                class="list-group direction-horizontal row"
+                                style="flex-direction: row !important; flex-wrap: wrap;"
+                            >
                                 <li
                                     class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0"
                                 >
@@ -267,31 +264,62 @@
                                     </div>
                                 </li>
 
-                                <!-- <li class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0">
+                                <li
+                                    class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0"
+                                >
                                     <div class="pt-0 pr-3">
-                                        <span class="fa fa-clock-o"/>
+                                        <span class="fa fa-check-square-o" />
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="mb-1">
-                                            <p class="mb-0 item-header"> House Rules </p>
+                                            <p
+                                                class="mb-0 item-header"
+                                            > House Rules </p>
                                         </div>
                                         <div class="mb-1">
                                             <div class="d-flex justify-content-between">
                                                 <div>
-                                                    <t t-if="(property.checkin &lt; 12.0 or property.checkout &lt; 12.0)">
-                                                        <t t-set="tz">AM</t>
+                                                    <t t-if="property.pets">
+                                                        <span class="fa fa-circle-o" />
+                                                        <span
+                                                            class="normal"
+                                                        >Pet-friendly apartments.</span>
                                                     </t>
-                                                    <t t-if="(property.checkin &gt; 12.0 or property.checkout &gt; 12.0)">
-                                                        <t t-set="tz">PM</t>
+                                                    <t t-elif="property.pets== False">
+                                                        <span class="fa fa-circle-o" />
+                                                        <span
+                                                            class="normal"
+                                                        >Pets Are  Not Allowed.</span>
                                                     </t>
-                                                    <span class="normal">Check in:</span> <span t-field="property.checkin"/> <span t-esc="tz"/>
-                                                    <br/>
-                                                    <span class="normal">Check out:</span> <span t-field="property.checkout"/> <span t-esc="tz"/>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </li> -->
+                                </li>
+
+                                <li
+                                    class="list-group-item d-flex p-0 col col-sm-6 col-md-4 p-3 my-2 border-0"
+                                >
+                                    <div class="pt-0 pr-3">
+                                        <span class="fa fa-times-circle-o" />
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="mb-1">
+                                            <p
+                                                class="mb-0 item-header"
+                                            > Cancelation Policy </p>
+                                        </div>
+                                        <div class="mb-1">
+                                            <div class="d-flex justify-content-between">
+                                                <div>
+                                                    <p
+                                                        class="text-justify"
+                                                    >Change of plans? No worries. You can cancel up to 72 hours before your check-in date for a full refund. For reservations close to check-in or special cases, please contact our team, we will be glad to help.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
                             </ul>
                         </section>
                     </div>
