@@ -6,12 +6,12 @@
     "license": "AGPL-3",
     "depends": [
         "base",
-        "pms",
+        "pms_base",
         "queue_job"
     ],
     "data": [
-        "views/backend_guesty.xml"
+        "views/backend_guesty.xml",
+        "security/ir.model.access.csv"
     ],
-    "installable": True,
-    "external_dependencies": ["odoo14-addon-queue-job"]
+    "installable": True
 }

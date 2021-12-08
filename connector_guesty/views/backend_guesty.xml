@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
+
+    <record id="form_view_guesty_connector_backend" model="ir.ui.view">
+        <field name="name">Guesty Backend</field>
+        <field name="model">backend.guesty</field>
+        <field name="arch" type="xml">
+            <form>
+
+            </form>
+        </field>
+    </record>
+
     <record id="action_guesty_connector_backend" model="ir.actions.act_window">
         <field name="name">Guesty Backend</field>
         <field name="res_model">backend.guesty</field>
@@ -11,6 +22,6 @@
         id="menu_action_guesty_connector_backend"
         action="action_guesty_connector_backend"
         sequence="10"
-        parent="menu_queue_job_root"
+        parent="queue_job.menu_queue_job_root"
     />
 </odoo>
