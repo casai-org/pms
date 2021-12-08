@@ -3,3 +3,5 @@ access_pms_property_public,access_property_public,pms_base.model_pms_property,,1
 access_pms_room_public,access_pms_room,pms_base.model_pms_room,,1,0,0,0
 access_pms_amenity_public,access_pms_amenity,pms_base.model_pms_amenity,,1,0,0,0
 access_pms_service,access_pms_service,pms_base.model_pms_service,,1,0,0,0
+access_pms_website_category,access_pms_website_category,model_pms_website_category,base.group_user,1,1,1,0
+
