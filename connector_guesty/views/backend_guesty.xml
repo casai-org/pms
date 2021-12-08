@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="action_guesty_connector_backend" model="ir.actions.act_window">
+        <field name="name">Guesty Backend</field>
+        <field name="res_model">backend.guesty</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem
+        name="Guesty"
+        id="menu_action_guesty_connector_backend"
+        action="action_guesty_connector_backend"
+        sequence="10"
+        parent="menu_queue_job_root"
+    />
+</odoo>
