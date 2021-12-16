@@ -24,7 +24,6 @@
                     </group>
                     <notebook>
                         <page string="Actions">
-                            <button name="action_download_properties" string="Download Properties" type="object"/>
                             <button name="download_reservations" string="Download Reservations" type="object"/>
                         </page>
                         <page string="Configuration">

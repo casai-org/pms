@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import datetime
+import logging
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 import requests
-import logging
-
-GUESTY_BASE_URL = "https://api.sandbox.guesty.com/api/v2"
 
 _log = logging.getLogger(__name__)
 
@@ -17,7 +15,7 @@ class BackendGuesty(models.Model):
     name = fields.Char(required=True)
     api_key = fields.Char(required=True)
     api_secret = fields.Char(required=True)
-    api_url = fields.Char(default=GUESTY_BASE_URL, required=True)
+    api_url = fields.Char(required=True)
 
     cleaning_product_id = fields.Many2one("product.product")
 
@@ -134,59 +132,6 @@ class BackendGuesty(models.Model):
                     "stage_id": stage_id.id,
                     "partner_id": pms_guest.partner_id.id
                 })
-
-    def action_download_properties(self):
-        self.with_delay().download_properties()
-
-    def download_properties(self):
-        # https://docs.guesty.com/#list-all-listings
-        _log.info("Downloading.....")
-        data = []
-        skip = 0
-        while True:
-            _log.info("Skip: {}".format(skip))
-            success, result = self.call_get_request("listings", {"active": "true"}, skip=skip)
-            if not success:
-                break
-
-            records = result.get("results", [])
-            count = len(records)
-            if count == 0:
-                break
-            else:
-                skip += count
-
-            data += records
-
-        for record in data:
-            guesty_id = record.get("_id")
-            nickname = record.get("nickname")
-            address = record.get("address")
-
-            if address.get("country") == "Mexico":
-                country = self.env.ref("base.mx")
-            elif address.get("country") == "Brasil":
-                country = self.env.ref("base.br")
-            else:
-                country = self.env.ref("base.mx")
-
-            body = {
-                "guesty_id": guesty_id,
-                "name": nickname,
-                "city": address.get("city"),
-                "street": address.get("street"),
-                "zipcode": address.get("zip"),
-                "country_id": country.id
-            }
-
-            property = self.env["pms.property"].search([
-                ("guesty_id", "=", guesty_id)
-            ], limit=1)
-
-            if not property.exists():
-                self.env["pms.property"].create(body)
-            else:
-                property.write(body)
 
     def call_get_request(self, url_path, params=None, skip=0, limit=25, success_codes=None):
         if success_codes is None:
