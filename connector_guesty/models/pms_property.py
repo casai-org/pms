@@ -12,18 +12,8 @@ class PmsProperty(models.Model):
 
     guesty_id = fields.Char()
 
-    # guesty_title = fields.Char()
-    # guesty_description = fields.Text()
-    # guesty_summary = fields.Text()
-
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()
-
-    # @api.model
-    # def create(self, values):
-    #     result = super(PmsProperty, self).create(values)
-    #     result.with_delay().guesty_push_property()
-    #     return result
 
     def guesty_push_property(self):
         code = ''.join(
