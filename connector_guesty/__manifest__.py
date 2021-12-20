@@ -14,6 +14,7 @@
         "views/backend_guesty.xml",
         "views/pms_property.xml",
         "views/pms_reservation.xml",
+        "views/res_partner.xml",
         "security/ir.model.access.csv"
     ],
     "installable": True

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import datetime
 import logging
+import json
 
 from odoo import models, fields, api
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 import requests
 
 _log = logging.getLogger(__name__)
@@ -16,43 +17,9 @@ class BackendGuesty(models.Model):
     api_key = fields.Char(required=True)
     api_secret = fields.Char(required=True)
     api_url = fields.Char(required=True)
+    reservation_pull_start_date = fields.Datetime()
 
     cleaning_product_id = fields.Many2one("product.product")
-
-    def guesty_search_customer(self, guesty_id):
-        guesty_partner = self.env["res.partner.guesty"].search([("guesty_id", "=", guesty_id)], limit=1)
-        if not guesty_partner:
-            # get data from guesty
-            success, res = self.call_get_request(
-                url_path="guests/{}".format(guesty_id)
-            )
-
-            if not success:
-                raise UserError("Failed to get customer data from guesty")
-
-            customer_name = res.get("fullName")
-            if not customer_name:
-                customer_name = "{} {}".format(
-                    res.get("firstName"),
-                    res.get("lastName")
-                )
-
-            body_payload = {
-                "name": customer_name,
-                "email": res.get("email"),
-                "phone": res.get("phone")
-            }
-
-            base_partner = self.env["res.partner"].create(body_payload)
-
-            customer = self.env["res.partner.guesty"].create({
-                "partner_id": base_partner.id,
-                "guesty_id": guesty_id
-            })
-
-            return customer
-        else:
-            return guesty_partner
 
     def check_credentials(self):
         # url to validate the credentials
@@ -65,73 +32,118 @@ class BackendGuesty(models.Model):
         else:
             raise UserError("Connection Test Failed!")
 
-    def download_reservations(self):
-        data = []
-        skip = 0
-        while True:
+    def action_test_guest(self):
+        self.guesty_search_customer("61ba45ea91a58a00328beca4")
+
+    def guesty_search_customer(self, guesty_id):
+        """
+        Method to search a guesty customer into odoo
+        Docs: https://docs.guesty.com/#retrieve-a-guest
+        :param str guesty_id: Guesty customer ID
+        :return models.Model(res.partner.guesty):
+        """
+        # search for a guesty customer in the odoo database into the res.partner.guesty model
+        # if we don't found them, we request to get the customer data from guesty and store it into odoo
+        if guesty_id is None:
+            return
+
+        guesty_partner = self.env["res.partner.guesty"].search([("guesty_id", "=", guesty_id)], limit=1)
+        if not guesty_partner:
+            # get data from guesty
             success, res = self.call_get_request(
-                url_path="reservations",
-                skip=skip,
-                params={
-                    "fields": " ".join(["status", "checkIn", "checkOut", "listingId", "guestId"])
-                }
+                url_path="guests/{}".format(guesty_id)
             )
 
             if not success:
-                break
+                raise UserError("Failed to get customer data from guesty")
 
-            records = res.get("results", [])
-            count = len(records)
+            customer_name = res.get("fullName")
+            if not customer_name:
+                customer_name = res.get("firstName")
+                if customer_name and res.get("lastName"):
+                    customer_name = "{} {}".format(
+                        customer_name,
+                        res.get("lastName")
+                    )
 
-            if count == 0:
-                break
-            else:
-                skip += count
+            if not customer_name:
+                customer_name = "Anonymous Customer"
 
-            data += records
+            body_payload = {
+                "name": customer_name,
+                "email": res.get("email"),
+                "phone": res.get("phone")
+            }
 
-        for record in data:
-            guesty_id = record.get("_id")
-            listing_id = record.get("listingId")
-            check_in = record.get("checkIn")
-            check_out = record.get("checkOut")
-            status = record.get("status")
-            guest_id = record.get("guestId")
+            hometown = res.get("hometown")
+            if hometown:
+                home_town_split = hometown.split(", ")
+                if len(home_town_split) >= 2:
+                    city, country_name = home_town_split[0:2]
+                    country = self.env["res.country"].search([("name", "=", country_name)], limit=1)
+                    body_payload["country_id"] = country.id
+                else:
+                    city = hometown
+                body_payload["city"] = city
 
-            reservation_exists = self.env["pms.reservation"].search([
-                ("guesty_id", "=", guesty_id)
-            ], limit=1)
+            base_partner = self.env["res.partner"].create(body_payload)
 
-            pms_property = self.env["pms.property"].search([
-                ("guesty_id", "=", listing_id)
-            ], limit=1)
+            customer = self.env["res.partner.guesty"].create({
+                "partner_id": base_partner.id,
+                "guesty_id": guesty_id
+            })
 
-            pms_guest = self.guesty_search_customer(guest_id)
-            check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
-            check_out_time = datetime.datetime.strptime(check_out[0:19], "%Y-%m-%dT%H:%M:%S")
+            return customer
+        else:
+            return guesty_partner
 
-            if status == "inquiry":
-                stage_id = self.env.ref("pms_sale.pms_stage_new", raise_if_not_found=False)
-            elif status == "reserved":
-                stage_id = self.env.ref("pms_sale.pms_stage_booked", raise_if_not_found=False)
-            elif status == "confirmed":
-                stage_id = self.env.ref("pms_sale.pms_stage_confirmed", raise_if_not_found=False)
-            elif status in ["canceled", "declined", "expired", "closed"]:
-                stage_id = self.env.ref("pms_sale.pms_stage_cancelled", raise_if_not_found=False)
-            else:
-                stage_id = self.env.ref("pms_sale.pms_stage_new", raise_if_not_found=False)
+    def download_reservations(self):
+        """
+        Method to download reservations from guesty
+        Docs: https://docs.guesty.com/#search-reservations
+        :return:
+        """
+        reservation_status = [
+            "inquiry", "declined", "expired", "canceled", "closed", "reserved", "confirmed", "checked_in",
+            "checked_out", "awaiting_payment"
+        ]
+        filters = [{"field": "status", "operator": "$in", "value": reservation_status}]
+        if self.reservation_pull_start_date:
+            filters.append({
+                "field": "lastUpdatedAt",
+                "operator": "$gte",
+                "value": self.reservation_pull_start_date.strftime("%Y-%m-%dT%H:%M:%S")
+            })
 
-            if not reservation_exists and pms_property:
-                self.env["pms.reservation"].with_context({
-                    "ignore_overlap": True
-                }).create({
-                    "guesty_id": guesty_id,
-                    "property_id": pms_property.id,
-                    "start": check_in_time,
-                    "stop": check_out_time,
-                    "stage_id": stage_id.id,
-                    "partner_id": pms_guest.partner_id.id
-                })
+        params = {
+            "filters": json.dumps(filters),
+            "sort": "lastUpdatedAt",
+            "fields": " ".join(
+                ["status", "checkIn", "checkOut", "listingId", "guestId", "listing.nickname", "lastUpdatedAt"])
+        }
+
+        success, res = self.call_get_request(
+            url_path="reservations",
+            params=params
+        )
+
+        if not success:
+            _log.error(res.content)
+            raise ValidationError("Unable to sync data")
+
+        records = res.get("results", [])
+        reservation_last_date = None
+        for reservation in records:
+            self.env["pms.reservation"].with_delay().guesty_pull_reservation(self, reservation)
+            _reservation_update_date = reservation.get("lastUpdatedAt")
+            if _reservation_update_date:
+                _reservation_update_date = _reservation_update_date[0:19]
+                _reservation_update_date = datetime.datetime.strptime(_reservation_update_date, "%Y-%m-%dT%H:%M:%S")
+                if not reservation_last_date or _reservation_update_date > reservation_last_date:
+                    reservation_last_date = _reservation_update_date
+
+        if reservation_last_date:
+            self.reservation_pull_start_date = reservation_last_date
 
     def call_get_request(self, url_path, params=None, skip=0, limit=25, success_codes=None):
         if success_codes is None:

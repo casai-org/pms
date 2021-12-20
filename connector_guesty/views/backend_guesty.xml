@@ -24,11 +24,13 @@
                     </group>
                     <notebook>
                         <page string="Actions">
+                            <button name="action_test_guest" string="Test Guest" type="object"/>
                             <button name="download_reservations" string="Download Reservations" type="object"/>
                         </page>
                         <page string="Configuration">
                             <group>
                                 <group>
+                                    <field name="reservation_pull_start_date"/>
                                     <field name="cleaning_product_id"/>
                                 </group>
                             </group>
