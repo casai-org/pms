@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import logging
+import datetime
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError, ValidationError
-import logging
 
 _log = logging.getLogger(__name__)
 
@@ -101,3 +102,64 @@ class PmsReservation(models.Model):
         else:
             # block calendar
             raise UserError("Reservation without a SO are not implemented")
+
+    def guesty_pull_reservation(self, backend, payload):
+        _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
+        reservation_id = self.search([
+            ("guesty_id", "=", _id)
+        ], limit=1)
+
+        if not reservation_id:
+            self.env["pms.reservation"].with_context({
+                "ignore_overlap": True
+            }).create(reservation)
+        else:
+            self.env["pms.reservation"].with_context({
+                "ignore_overlap": True
+            }).write(reservation)
+
+        return True
+
+    def guesty_map_reservation_status(self, status):
+        if status == "inquiry":
+            stage_id = self.env.ref("pms_sale.pms_stage_new", raise_if_not_found=False)
+        elif status == "reserved":
+            stage_id = self.env.ref("pms_sale.pms_stage_booked", raise_if_not_found=False)
+        elif status == "confirmed":
+            stage_id = self.env.ref("pms_sale.pms_stage_confirmed", raise_if_not_found=False)
+        elif status in ["canceled", "declined", "expired", "closed"]:
+            stage_id = self.env.ref("pms_sale.pms_stage_cancelled", raise_if_not_found=False)
+        else:
+            stage_id = self.env.ref("pms_sale.pms_stage_new", raise_if_not_found=False)
+
+        return stage_id
+
+    def guesty_parse_reservation(self, reservation, backend):
+        guesty_id = reservation.get("_id")
+        listing_id = reservation.get("listingId")
+        check_in = reservation.get("checkIn")
+        check_out = reservation.get("checkOut")
+        status = reservation.get("status")
+        guest_id = reservation.get("guestId")
+
+        property_id = self.env["pms.property"].search([
+            ("guesty_id", "=", listing_id)
+        ], limit=1)
+
+        if not property_id.exists():
+            raise ValidationError("Listing: {} does not exist".format(listing_id))
+
+        stage_id = self.guesty_map_reservation_status(status)
+        pms_guest = backend.sudo().guesty_search_customer(guest_id)
+
+        check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
+        check_out_time = datetime.datetime.strptime(check_out[0:19], "%Y-%m-%dT%H:%M:%S")
+
+        return guesty_id, {
+            "guesty_id": guesty_id,
+            "property_id": property_id.id,
+            "start": check_in_time,
+            "stop": check_out_time,
+            "stage_id": stage_id.id,
+            "partner_id": pms_guest.partner_id.id
+        }
