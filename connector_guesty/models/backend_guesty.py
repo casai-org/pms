@@ -14,6 +14,7 @@ _log = logging.getLogger(__name__)
 
 class BackendGuesty(models.Model):
     _name = "backend.guesty"
+    _description = "Guesty Backend"
 
     name = fields.Char(required=True)
     api_key = fields.Char(required=True)
