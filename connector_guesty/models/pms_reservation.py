@@ -33,39 +33,11 @@ class PmsReservation(models.Model):
         self.with_delay().guesty_push_reservation()
 
     def action_search_customer(self):
-        backend = self.env.company.guesty_backend_id
-        self.guesty_search_customer(backend)
-
-    def guesty_search_customer(self, backend):
-        guesty_partner = self.env["res.partner.guesty"].search([("partner_id", "=", self.partner_id.id)], limit=1)
-        if not guesty_partner:
-            # create on guesty
-            body = {
-                "fullName": self.partner_id.name,
-                "email": self.partner_id.email,
-                "phone": self.partner_id.phone
-            }
-            success, res = backend.call_post_request(
-                url_path="guests",
-                body=body
-            )
-
-            if not success:
-                raise UserError("Unable to create customer")
-
-            guesty_id = res.get("_id")
-            customer = self.env["res.partner.guesty"].create({
-                "partner_id": self.partner_id.id,
-                "guesty_id": guesty_id
-            })
-
-            return customer
-        else:
-            return guesty_partner
+        self.guesty_search_customer()
 
     def guesty_push_reservation(self):
         backend = self.env.company.guesty_backend_id
-        customer = self.guesty_search_customer(backend)
+        customer = backend.guesty_search_create_customer(self.partner_id)
 
         body = {
             "listingId": self.property_id.guesty_id,
@@ -81,6 +53,7 @@ class PmsReservation(models.Model):
             if reservation_line:
                 body["money"] = {
                     "fareAccommodation": reservation_line.price_subtotal,
+                    "currency": self.sale_order_id.currency_id.name
                 }
 
             cleaning_line = self.sale_order_id.order_line.filtered(
@@ -88,6 +61,8 @@ class PmsReservation(models.Model):
 
             if cleaning_line and reservation_line:
                 body["money"]["fareCleaning"] = cleaning_line.price_subtotal
+
+            _log.info(body)
 
             success, res = backend.call_post_request(
                 url_path="reservations",
@@ -110,11 +85,11 @@ class PmsReservation(models.Model):
         ], limit=1)
 
         if not reservation_id:
-            self.env["pms.reservation"].with_context({
+            self.env["pms.reservation"].sudo().with_context({
                 "ignore_overlap": True
             }).create(reservation)
         else:
-            reservation_id.with_context({
+            reservation_id.sudo().with_context({
                 "ignore_overlap": True
             }).write(reservation)
 
@@ -150,7 +125,7 @@ class PmsReservation(models.Model):
             raise ValidationError("Listing: {} does not exist".format(listing_id))
 
         stage_id = self.guesty_map_reservation_status(status)
-        pms_guest = backend.sudo().guesty_search_customer(guest_id)
+        pms_guest = backend.sudo().guesty_search_pull_customer(guest_id)
 
         check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
         check_out_time = datetime.datetime.strptime(check_out[0:19], "%Y-%m-%dT%H:%M:%S")

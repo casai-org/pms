@@ -35,7 +35,34 @@ class BackendGuesty(models.Model):
     def action_test_guest(self):
         self.guesty_search_customer("61ba45ea91a58a00328beca4")
 
-    def guesty_search_customer(self, guesty_id):
+    def guesty_search_create_customer(self, partner):
+        guesty_partner = self.env["res.partner.guesty"].search([("partner_id", "=", partner.id)], limit=1)
+        if not guesty_partner:
+            # create on guesty
+            body = {
+                "fullName": partner.name,
+                "email": partner.email,
+                "phone": partner.phone
+            }
+            success, res = self.call_post_request(
+                url_path="guests",
+                body=body
+            )
+
+            if not success:
+                raise UserError("Unable to create customer")
+
+            guesty_id = res.get("_id")
+            customer = self.env["res.partner.guesty"].create({
+                "partner_id": partner.id,
+                "guesty_id": guesty_id
+            })
+
+            return customer
+        else:
+            return guesty_partner
+
+    def guesty_search_pull_customer(self, guesty_id):
         """
         Method to search a guesty customer into odoo
         Docs: https://docs.guesty.com/#retrieve-a-guest
@@ -178,6 +205,7 @@ class BackendGuesty(models.Model):
         if result.status_code == 200:
             return True, result.json()
         else:
+            _log.error(result.content)
             return False, None
 
     def call_put_request(self, url_path, body):
