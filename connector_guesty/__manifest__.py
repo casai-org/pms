@@ -12,6 +12,7 @@
         "views/pms_reservation.xml",
         "views/res_partner.xml",
         "security/ir.model.access.csv",
+        "data/queue.job.function.csv",
     ],
     "installable": True,
     "development_status": "Beta",
