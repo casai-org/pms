@@ -93,7 +93,7 @@ class PmsReservation(models.Model):
                 # DEV - PRE - EVC  No live
                 # OPS - ROM - UNV exit unit
                 block_title = "Blocked By: {}".format(self.partner_id.name)
-                success, response = backend.call_put_request(
+                backend.call_put_request(
                     url_path="listings/calendars",
                     body={
                         "listings": [self.property_id.guesty_id],
@@ -103,9 +103,6 @@ class PmsReservation(models.Model):
                         "note": block_title
                     }
                 )
-
-                _log.info(success)
-                _log.info(response)
 
     def guesty_pull_reservation(self, backend, payload):
         _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
