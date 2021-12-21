@@ -217,6 +217,10 @@ class BackendGuesty(models.Model):
         )
 
         if result.status_code == 200:
-            return True, result.json()
+            if result.content.decode("utf-8") == "ok":
+                return True, result.content.decode("utf-8")
+            else:
+                return True, result.json()
         else:
+            _log.error(result.content)
             return False, None
