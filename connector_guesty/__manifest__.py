@@ -4,7 +4,7 @@
     "website": "https://github.com/OCA/pms",
     "version": "14.0.1.0.0",
     "license": "AGPL-3",
-    "depends": ["base", "pms_base", "pms_sale", "queue_job"],
+    "depends": ["pms_sale", "queue_job"],
     "data": [
         "views/backend_guesty.xml",
         "views/pms_property.xml",
@@ -14,4 +14,6 @@
         "security/ir.model.access.csv",
     ],
     "installable": True,
+    "development_status": "Beta",
+    "maintainers": ["JorgeJuarezCasai"],
 }
