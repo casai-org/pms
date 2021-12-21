@@ -73,8 +73,39 @@ class PmsReservation(models.Model):
             guesty_id = res.get("_id")
             self.guesty_id = guesty_id
         else:
-            # block calendar
-            raise UserError("Reservation without a SO are not implemented")
+            # retrieve calendars
+            success, calendars = backend.call_get_request(
+                url_path="listings/{}/calendar".format(self.property_id.guesty_id),
+                params={
+                    "from": self.start.strftime("%Y-%m-%d"),
+                    "to": self.stop.strftime("%Y-%m-%d")
+                }
+            )
+
+            if success:
+                for calendar in calendars:
+                    if calendar.get("status") == "unavailable":
+                        raise ValidationError("Date {}, are not available to be blocked".format(calendar.get("date")))
+
+                # todo: build a context title with the next format
+                # block title examples
+                # OPS-MNT-WKB AC Repair - Bedroom
+                # DEV - PRE - EVC  No live
+                # OPS - ROM - UNV exit unit
+                block_title = "Blocked By: {}".format(self.partner_id.name)
+                success, response = backend.call_put_request(
+                    url_path="listings/calendars",
+                    body={
+                        "listings": [self.property_id.guesty_id],
+                        "from": self.start.strftime("%Y-%m-%d"),
+                        "to": self.stop.strftime("%Y-%m-%d"),
+                        "status": "unavailable",
+                        "note": block_title
+                    }
+                )
+
+                _log.info(success)
+                _log.info(response)
 
     def guesty_pull_reservation(self, backend, payload):
         _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
