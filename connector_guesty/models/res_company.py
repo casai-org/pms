@@ -3,7 +3,7 @@
 from odoo import fields, models
 
 
-class ResPartner(models.Model):
-    _inherit = "res.partner"
+class ResCompany(models.Model):
+    _inherit = "res.company"
 
-    guesty_ids = fields.One2many("res.partner.guesty", "partner_id")
+    guesty_backend_id = fields.Many2one("backend.guesty")

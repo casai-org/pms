@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
-
-from . import backend_guesty
-from . import pms_property
-from . import pms_reservation
-from . import pms_property_reservation
-from . import res_config_settings
-from . import res_partner_guesty
-from . import res_partner
+from . import (
+    backend_guesty,
+    pms_property,
+    pms_reservation,
+    pms_property_reservation,
+    res_company,
+    res_config_settings,
+    res_partner_guesty,
+    res_partner,
+)

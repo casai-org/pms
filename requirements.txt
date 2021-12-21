@@ -2,4 +2,3 @@
 bs4
 pycountry
 xlrd
-requests
