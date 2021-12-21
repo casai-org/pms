@@ -2,6 +2,9 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 from odoo import fields, models
+import logging
+
+_log = logging.getLogger(__name__)
 
 
 class SaleOrder(models.Model):
@@ -32,11 +35,15 @@ class SaleOrder(models.Model):
     def action_confirm(self):
         res = super(SaleOrder, self).action_confirm()
         for sale in self:
+            # check when have multiple results
             reservation = self.env["pms.reservation"].search(
                 [("sale_order_id", "=", sale.id)]
             )
+            _log.info("Sale order: %s", reservation)
             if reservation:
-                reservation.stage_id = self.env.ref(
-                    "pms_sale.pms_stage_booked", raise_if_not_found=False
-                )
+                reservation.action_book()
+            # if reservation:
+            #     reservation.stage_id = self.env.ref(
+            #         "pms_sale.pms_stage_booked", raise_if_not_found=False
+            #     )
         return res

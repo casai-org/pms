@@ -3,12 +3,15 @@
 from datetime import datetime, timedelta
 
 import pytz
+import logging
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 AVAILABLE_PRIORITIES = [("0", "Normal"), ("1", "Low"), ("2", "High"), ("3", "Urgent")]
+
+_log = logging.getLogger(__name__)
 
 
 class PmsReservation(models.Model):
@@ -140,9 +143,9 @@ class PmsReservation(models.Model):
         for reservation in self:
             invoices = (
                 self.env["account.move.line"]
-                .search([("pms_reservation_id", "=", reservation.id)])
-                .mapped("move_id")
-                .filtered(lambda r: r.move_type in ("out_invoice", "out_refund"))
+                    .search([("pms_reservation_id", "=", reservation.id)])
+                    .mapped("move_id")
+                    .filtered(lambda r: r.move_type in ("out_invoice", "out_refund"))
             )
             reservation.invoice_count = len(invoices)
 
@@ -151,9 +154,9 @@ class PmsReservation(models.Model):
         search_domain = [("stage_type", "=", "reservation")]
         if self.env.context.get("default_team_id"):
             search_domain = [
-                "&",
-                ("team_ids", "in", self.env.context["default_team_id"]),
-            ] + search_domain
+                                "&",
+                                ("team_ids", "in", self.env.context["default_team_id"]),
+                            ] + search_domain
         return stages.search(search_domain, order=order)
 
     @api.model
@@ -231,6 +234,7 @@ class PmsReservation(models.Model):
                 ("id", "!=", self.id),
             ]
         )
+
         if reservation:
             raise ValidationError(
                 _(
@@ -240,15 +244,15 @@ class PmsReservation(models.Model):
 
     @api.constrains("property_id.min_nights", "property_id.max_nights", "duration")
     def _check_no_of_nights(self):
-        if (
-            self.duration > self.property_id.min_nights
-            and self.property_id.max_nights < self.duration
-        ):
-            raise ValidationError(
-                _(
-                    "No of nights is between minimum nights and maximum nights of property."
+        for record in self:
+            if (
+                record.property_id.min_nights > record.duration > record.property_id.max_nights
+            ):
+                raise ValidationError(
+                    _(
+                        "No of nights is between minimum nights and maximum nights of property."
+                    )
                 )
-            )
 
     def action_book(self):
         return self.write(
@@ -293,9 +297,9 @@ class PmsReservation(models.Model):
             action = self.env.ref("account.action_move_out_invoice_type").read()[0]
             invoices = (
                 self.env["account.move.line"]
-                .search([("pms_reservation_id", "=", reservation.id)])
-                .mapped("move_id")
-                .filtered(lambda r: r.move_type in ("out_invoice", "out_refund"))
+                    .search([("pms_reservation_id", "=", reservation.id)])
+                    .mapped("move_id")
+                    .filtered(lambda r: r.move_type in ("out_invoice", "out_refund"))
             )
             action["domain"] = [("id", "in", invoices.ids)]
             return action
