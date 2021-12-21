@@ -73,3 +73,62 @@ class PmsProperty(models.Model):
             self.write({
                 "guesty_id": guesty_id
             })
+
+    def guesty_pull_listing(self, backend, payload):
+        _id, property_data = self.sudo().guesty_parse_listing(payload, backend)
+        property_id = self.sudo().search([
+            ("guesty_id", "=", _id)
+        ], limit=1)
+
+        if not property_id:
+            self.env["pms.property"].sudo().create(property_data)
+        else:
+            property_id.write(property_data)
+
+        return True
+
+    def map_listing_type(self, guesty_type):
+        if guesty_type == "SINGLE":
+            return "private_room"
+
+    def guesty_parse_listing(self, payload, backend):
+        guesty_id = payload.get("id")
+        property_data = {
+            "guesty_id": guesty_id,
+            "name": payload.get("nickname"),
+            "listing_type": payload.get("type"),
+            "owner_id": 1  # todo: Change and define a default owner
+        }
+        listing_type = payload.get("type")
+        listing_type_mapped = self.map_listing_type(listing_type)
+        if listing_type and listing_type_mapped:
+            property_data["listing_type"] = listing_type_mapped
+
+        guesty_address = payload.get("address", {})
+
+        street = guesty_address.get("street")
+        if street:
+            property_data["street"] = street
+        city = guesty_address.get("city")
+        if city:
+            property_data["city"] = city
+        zip_code = guesty_address.get("zipcode")
+        if zip_code:
+            property_data["zip"] = zip_code
+        country = guesty_address.get("country")
+        if country:
+            if country.lower() in ["mexico", "méxico"]:
+                res_country = self.env.ref("base.mx", raise_if_not_found=False)
+            else:
+                res_country = self.env["res.country"].search([
+                    ("name", "=", country)
+                ], limit=1)
+
+            if res_country:
+                property_data["country_id"] = res_country.id
+
+        listing_timezone = payload.get("timezone")
+        if listing_timezone:
+            property_data["tz"] = listing_timezone
+
+        return guesty_id, property_data

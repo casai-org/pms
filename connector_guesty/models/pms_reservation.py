@@ -105,7 +105,7 @@ class PmsReservation(models.Model):
 
     def guesty_pull_reservation(self, backend, payload):
         _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
-        reservation_id = self.search([
+        reservation_id = self.sudo().search([
             ("guesty_id", "=", _id)
         ], limit=1)
 
@@ -114,7 +114,7 @@ class PmsReservation(models.Model):
                 "ignore_overlap": True
             }).create(reservation)
         else:
-            self.env["pms.reservation"].with_context({
+            reservation_id.with_context({
                 "ignore_overlap": True
             }).write(reservation)
 
