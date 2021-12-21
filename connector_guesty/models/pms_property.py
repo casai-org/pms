@@ -160,3 +160,5 @@ class PmsProperty(models.Model):
         property_data["max_nights"] = max_nights
 
         return guesty_id, property_data
+
+
