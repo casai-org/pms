@@ -1,11 +1,13 @@
-# -*- coding: utf-8 -*-
+# Copyright (C) 2021 Casai (https://www.casai.com)
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import datetime
-import logging
 import json
+import logging
 
-from odoo import models, fields, api
-from odoo.exceptions import UserError, ValidationError
 import requests
+
+from odoo import _, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 _log = logging.getLogger(__name__)
 
@@ -23,40 +25,40 @@ class BackendGuesty(models.Model):
 
     def check_credentials(self):
         # url to validate the credentials
-        # this endpoint will search a list of users, it may be empty if the api key does not have permissions
-        # to list the users, but it should be a 200 response
+        # this endpoint will search a list of users, it may be empty if the api key
+        # does not have permissions to list the users, but it should be a 200 response
         # Note: Guesty does not provide a way to validate credentials
         success, result = self.call_get_request("search", limit=1)
         if success:
-            raise UserError("Connection Test Succeeded! Everything seems properly set up!")
+            raise UserError(
+                _("Connection Test Succeeded! Everything seems properly set up!")
+            )
         else:
-            raise UserError("Connection Test Failed!")
+            raise UserError(_("Connection Test Failed!"))
 
     def action_test_guest(self):
         self.guesty_search_customer("61ba45ea91a58a00328beca4")
 
     def guesty_search_create_customer(self, partner):
-        guesty_partner = self.env["res.partner.guesty"].search([("partner_id", "=", partner.id)], limit=1)
+        guesty_partner = self.env["res.partner.guesty"].search(
+            [("partner_id", "=", partner.id)], limit=1
+        )
         if not guesty_partner:
             # create on guesty
             body = {
                 "fullName": partner.name,
                 "email": partner.email,
-                "phone": partner.phone
+                "phone": partner.phone,
             }
-            success, res = self.call_post_request(
-                url_path="guests",
-                body=body
-            )
+            success, res = self.call_post_request(url_path="guests", body=body)
 
             if not success:
-                raise UserError("Unable to create customer")
+                raise UserError(_("Unable to create customer"))
 
             guesty_id = res.get("_id")
-            customer = self.env["res.partner.guesty"].create({
-                "partner_id": partner.id,
-                "guesty_id": guesty_id
-            })
+            customer = self.env["res.partner.guesty"].create(
+                {"partner_id": partner.id, "guesty_id": guesty_id}
+            )
 
             return customer
         else:
@@ -69,29 +71,27 @@ class BackendGuesty(models.Model):
         :param str guesty_id: Guesty customer ID
         :return models.Model(res.partner.guesty):
         """
-        # search for a guesty customer in the odoo database into the res.partner.guesty model
-        # if we don't found them, we request to get the customer data from guesty and store it into odoo
+        # search for a guesty customer in the odoo database into the res.partner.guesty
+        # model if we don't found them, we request to get the customer data from guesty
+        # and store it into odoo
         if guesty_id is None:
             return
 
-        guesty_partner = self.env["res.partner.guesty"].search([("guesty_id", "=", guesty_id)], limit=1)
+        guesty_partner = self.env["res.partner.guesty"].search(
+            [("guesty_id", "=", guesty_id)], limit=1
+        )
         if not guesty_partner:
             # get data from guesty
-            success, res = self.call_get_request(
-                url_path="guests/{}".format(guesty_id)
-            )
+            success, res = self.call_get_request(url_path="guests/{}".format(guesty_id))
 
             if not success:
-                raise UserError("Failed to get customer data from guesty")
+                raise UserError(_("Failed to get customer data from guesty"))
 
             customer_name = res.get("fullName")
             if not customer_name:
                 customer_name = res.get("firstName")
                 if customer_name and res.get("lastName"):
-                    customer_name = "{} {}".format(
-                        customer_name,
-                        res.get("lastName")
-                    )
+                    customer_name = "{} {}".format(customer_name, res.get("lastName"))
 
             if not customer_name:
                 customer_name = "Anonymous Customer"
@@ -99,7 +99,7 @@ class BackendGuesty(models.Model):
             body_payload = {
                 "name": customer_name,
                 "email": res.get("email"),
-                "phone": res.get("phone")
+                "phone": res.get("phone"),
             }
 
             hometown = res.get("hometown")
@@ -107,7 +107,9 @@ class BackendGuesty(models.Model):
                 home_town_split = hometown.split(", ")
                 if len(home_town_split) >= 2:
                     city, country_name = home_town_split[0:2]
-                    country = self.env["res.country"].search([("name", "=", country_name)], limit=1)
+                    country = self.env["res.country"].search(
+                        [("name", "=", country_name)], limit=1
+                    )
                     body_payload["country_id"] = country.id
                 else:
                     city = hometown
@@ -115,10 +117,9 @@ class BackendGuesty(models.Model):
 
             base_partner = self.env["res.partner"].create(body_payload)
 
-            customer = self.env["res.partner.guesty"].create({
-                "partner_id": base_partner.id,
-                "guesty_id": guesty_id
-            })
+            customer = self.env["res.partner.guesty"].create(
+                {"partner_id": base_partner.id, "guesty_id": guesty_id}
+            )
 
             return customer
         else:
@@ -131,48 +132,75 @@ class BackendGuesty(models.Model):
         :return:
         """
         reservation_status = [
-            "inquiry", "declined", "expired", "canceled", "closed", "reserved", "confirmed", "checked_in",
-            "checked_out", "awaiting_payment"
+            "inquiry",
+            "declined",
+            "expired",
+            "canceled",
+            "closed",
+            "reserved",
+            "confirmed",
+            "checked_in",
+            "checked_out",
+            "awaiting_payment",
         ]
         filters = [{"field": "status", "operator": "$in", "value": reservation_status}]
         if self.reservation_pull_start_date:
-            filters.append({
-                "field": "lastUpdatedAt",
-                "operator": "$gte",
-                "value": self.reservation_pull_start_date.strftime("%Y-%m-%dT%H:%M:%S")
-            })
+            filters.append(
+                {
+                    "field": "lastUpdatedAt",
+                    "operator": "$gte",
+                    "value": self.reservation_pull_start_date.strftime(
+                        "%Y-%m-%dT%H:%M:%S"
+                    ),
+                }
+            )
 
         params = {
             "filters": json.dumps(filters),
             "sort": "lastUpdatedAt",
             "fields": " ".join(
-                ["status", "checkIn", "checkOut", "listingId", "guestId", "listing.nickname", "lastUpdatedAt"])
+                [
+                    "status",
+                    "checkIn",
+                    "checkOut",
+                    "listingId",
+                    "guestId",
+                    "listing.nickname",
+                    "lastUpdatedAt",
+                ]
+            ),
         }
 
-        success, res = self.call_get_request(
-            url_path="reservations",
-            params=params
-        )
+        success, res = self.call_get_request(url_path="reservations", params=params)
 
         if not success:
             _log.error(res.content)
-            raise ValidationError("Unable to sync data")
+            raise ValidationError(_("Unable to sync data"))
 
         records = res.get("results", [])
         reservation_last_date = None
         for reservation in records:
-            self.env["pms.reservation"].with_delay().guesty_pull_reservation(self, reservation)
+            self.env["pms.reservation"].with_delay().guesty_pull_reservation(
+                self, reservation
+            )
             _reservation_update_date = reservation.get("lastUpdatedAt")
             if _reservation_update_date:
                 _reservation_update_date = _reservation_update_date[0:19]
-                _reservation_update_date = datetime.datetime.strptime(_reservation_update_date, "%Y-%m-%dT%H:%M:%S")
-                if not reservation_last_date or _reservation_update_date > reservation_last_date:
+                _reservation_update_date = datetime.datetime.strptime(
+                    _reservation_update_date, "%Y-%m-%dT%H:%M:%S"
+                )
+                if (
+                    not reservation_last_date
+                    or _reservation_update_date > reservation_last_date
+                ):
                     reservation_last_date = _reservation_update_date
 
         if reservation_last_date:
             self.reservation_pull_start_date = reservation_last_date
 
-    def call_get_request(self, url_path, params=None, skip=0, limit=25, success_codes=None):
+    def call_get_request(
+        self, url_path, params=None, skip=0, limit=25, success_codes=None
+    ):
         if success_codes is None:
             success_codes = [200, 201]
 
@@ -183,9 +211,7 @@ class BackendGuesty(models.Model):
 
         url = "{}/{}".format(self.api_url, url_path)
         result = requests.get(
-            url=url,
-            params=params,
-            auth=(self.api_key, self.api_secret)
+            url=url, params=params, auth=(self.api_key, self.api_secret)
         )
 
         if result.status_code in success_codes:
@@ -196,11 +222,7 @@ class BackendGuesty(models.Model):
 
     def call_post_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
-        result = requests.post(
-            url=url,
-            json=body,
-            auth=(self.api_key, self.api_secret)
-        )
+        result = requests.post(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:
             return True, result.json()
@@ -210,11 +232,7 @@ class BackendGuesty(models.Model):
 
     def call_put_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
-        result = requests.put(
-            url=url,
-            json=body,
-            auth=(self.api_key, self.api_secret)
-        )
+        result = requests.put(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:
             if result.content.decode("utf-8") == "ok":
