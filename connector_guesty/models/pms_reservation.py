@@ -23,15 +23,17 @@ class PmsReservation(models.Model):
 
     def action_book(self):
         res = super(PmsReservation, self).action_book()
-        if not res:
-            raise UserError(_("Something went wrong"))
+        if not self.env.context.get("ignore_guesty_push", False):
+            if not res:
+                raise UserError(_("Something went wrong"))
 
-        # Validate data
-        if not self.property_id.guesty_id:
-            raise ValidationError(_("Property not linked to guesty"))
+            # Validate data
+            if not self.property_id.guesty_id:
+                raise ValidationError(_("Property not linked to guesty"))
 
-        # Send to guesty
-        self.with_delay().guesty_push_reservation()
+            # Send to guesty
+            self.with_delay().guesty_push_reservation()
+        return res
 
     def action_search_customer(self):
         self.guesty_search_customer()
@@ -244,10 +246,14 @@ class PmsReservation(models.Model):
             self.sudo().write({"sale_order_id": so.id})
 
             if status in ["reserved", "confirmed"]:
-                so.action_confirm()  # confirm the SO -> Reservation booked
+                so.with_context(
+                    {"ignore_guesty_push": True}
+                ).action_confirm()  # confirm the SO -> Reservation booked
 
             if status == "confirmed":
-                self.action_confirm()  # confirm the reservation
+                self.with_context(
+                    {"ignore_guesty_push": True}
+                ).action_confirm()  # confirm the reservation
 
         elif status in ["canceled", "declined", "expired", "closed"]:
             stage_id = self.env.ref(
