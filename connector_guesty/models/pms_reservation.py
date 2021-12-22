@@ -123,8 +123,9 @@ class PmsReservation(models.Model):
 
             invoice_lines = payload.get("money", {}).get("invoiceItems")
             no_nights = payload.get("nightsCount", 0)
+            status = payload.get("status", "inquiry")
 
-            reservation_id.build_so(invoice_lines, no_nights, backend)
+            reservation_id.build_so(invoice_lines, no_nights, status, backend)
         else:
             reservation_id.sudo().with_context({"ignore_overlap": True}).write(
                 reservation
