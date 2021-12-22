@@ -188,7 +188,8 @@ class PmsReservation(models.Model):
         # Create SO based on reservation
         # When the reservation was created out of odoo
         if guesty_invoice_items is None:
-            raise ValidationError(_("Unable to create SO without guesty data"))
+            _log.error("Unable to create SO without guesty data")
+            return
 
         if not backend:
             raise ValidationError(_("No Backend defined"))
