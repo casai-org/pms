@@ -169,6 +169,7 @@ class BackendGuesty(models.Model):
                     "listing.nickname",
                     "lastUpdatedAt",
                     "money",
+                    "nightsCount",
                 ]
             ),
         }
