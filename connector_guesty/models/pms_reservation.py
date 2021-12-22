@@ -157,7 +157,6 @@ class PmsReservation(models.Model):
         listing_id = reservation.get("listingId")
         check_in = reservation.get("checkIn")
         check_out = reservation.get("checkOut")
-        status = reservation.get("status")
         guest_id = reservation.get("guestId")
 
         property_id = self.env["pms.property"].search(
@@ -167,7 +166,6 @@ class PmsReservation(models.Model):
         if not property_id.exists():
             raise ValidationError(_("Listing: {} does not exist".format(listing_id)))
 
-        stage_id = self.guesty_map_reservation_status(status)
         pms_guest = backend.sudo().guesty_search_pull_customer(guest_id)
 
         check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
@@ -180,11 +178,10 @@ class PmsReservation(models.Model):
             "property_id": property_id.id,
             "start": check_in_time,
             "stop": check_out_time,
-            "stage_id": stage_id.id,
             "partner_id": pms_guest.partner_id.id,
         }
 
-    def build_so(self, guesty_invoice_items, no_nights, backend):
+    def build_so(self, guesty_invoice_items, no_nights, status, backend):
         # Create SO based on reservation
         # When the reservation was created out of odoo
         if guesty_invoice_items is None:
@@ -197,49 +194,63 @@ class PmsReservation(models.Model):
         if self.sale_order_id:
             return self.sale_order_id
 
-        order_lines = []
-        for line in guesty_invoice_items:
-            if line.get("type") == "ACCOMMODATION_FARE":
-                reservation_type = self.property_id.reservation_ids.filtered(
-                    lambda s: s.is_guesty_price
-                )
+        if status in ["inquiry", "reserved", "confirmed"]:
+            order_lines = []
+            for line in guesty_invoice_items:
+                if line.get("type") == "ACCOMMODATION_FARE":
+                    reservation_type = self.property_id.reservation_ids.filtered(
+                        lambda s: s.is_guesty_price
+                    )
 
-                if not reservation_type:
-                    raise ValidationError(_("Missing guesty reservation type"))
+                    if not reservation_type:
+                        raise ValidationError(_("Missing guesty reservation type"))
 
-                order_lines.append(
+                    order_lines.append(
+                        {
+                            "product_id": reservation_type.product_id.id,
+                            "name": reservation_type.display_name,
+                            "product_uom_qty": no_nights,
+                            "price_unit": line.get("amount"),
+                            "property_id": self.property_id.id,
+                            "reservation_id": reservation_type.id,
+                            "pms_reservation_id": self.id,
+                            "start": self.start,
+                            "stop": self.stop,
+                            "no_of_guests": 1,  # Todo: Set correct number of guests
+                        }
+                    )
+                elif line.get("type") == "CLEANING_FEE":
+                    order_lines.append(
+                        {
+                            "product_id": backend.sudo().cleaning_product_id.id,
+                            "name": backend.sudo().cleaning_product_id.name,
+                            "product_uom_qty": 1,
+                            "price_unit": line.get("amount"),
+                        }
+                    )
+
+            so = (
+                self.env["sale.order"]
+                .sudo()
+                .create(
                     {
-                        "product_id": reservation_type.product_id.id,
-                        "name": reservation_type.display_name,
-                        "product_uom_qty": no_nights,
-                        "price_unit": line.get("amount"),
-                        "property_id": self.property_id.id,
-                        "reservation_id": reservation_type.id,
-                        "pms_reservation_id": self.id,
-                        "start": self.start,
-                        "stop": self.stop,
-                        "no_of_guests": 1,  # Todo: Set correct number of guests
+                        "partner_id": self.partner_id.id,
+                        "order_line": [(0, False, line) for line in order_lines],
                     }
                 )
-            elif line.get("type") == "CLEANING_FEE":
-                order_lines.append(
-                    {
-                        "product_id": backend.sudo().cleaning_product_id.id,
-                        "name": backend.sudo().cleaning_product_id.name,
-                        "product_uom_qty": 1,
-                        "price_unit": line.get("amount"),
-                    }
-                )
-
-        so = (
-            self.env["sale.order"]
-            .sudo()
-            .create(
-                {
-                    "partner_id": self.partner_id.id,
-                    "order_line": [(0, False, line) for line in order_lines],
-                }
             )
-        )
 
-        self.sudo().write({"sale_order_id": so.id})
+            self.sudo().write({"sale_order_id": so.id})
+
+            if status in ["reserved", "confirmed"]:
+                so.action_confirm()  # confirm the SO -> Reservation booked
+
+            if status == "confirmed":
+                self.action_confirm()  # confirm the reservation
+
+        elif status in ["canceled", "declined", "expired", "closed"]:
+            stage_id = self.env.ref(
+                "pms_sale.pms_stage_cancelled", raise_if_not_found=False
+            )
+
+            self.write({"stage_id": stage_id.id})
