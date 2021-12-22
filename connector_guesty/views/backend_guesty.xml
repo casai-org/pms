@@ -29,11 +29,6 @@
                     <notebook>
                         <page string="Actions">
                             <button
-                                name="action_test_guest"
-                                string="Test Guest"
-                                type="object"
-                            />
-                            <button
                                 name="download_reservations"
                                 string="Download Reservations"
                                 type="object"
