@@ -33,6 +33,11 @@
                                 string="Download Reservations"
                                 type="object"
                             />
+                            <button
+                                name="download_calendars"
+                                string="Download Calendars"
+                                type="object"
+                            />
                         </page>
                         <page string="Configuration">
                             <group>

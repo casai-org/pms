@@ -30,6 +30,13 @@ class SaleOrderLine(models.Model):
             if not backend:
                 raise ValidationError(_("No backend defined"))
 
+            # self.env["pms.guesty.calendar"].compute_price(
+            #     self.property_id,
+            #     self.start,
+            #     self.stop,
+            #     self.order_id.currency_id
+            # )
+
             success, result = backend.call_get_request(
                 url_path="listings/{}/calendar".format(self.property_id.guesty_id),
                 params={

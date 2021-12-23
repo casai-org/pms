@@ -12,6 +12,7 @@
                     string="Publish to Guesty"
                     type="object"
                 />
+                <button name="property_get_price" string="Test Date" type="object" />
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <page string="Guesty Technical Info">

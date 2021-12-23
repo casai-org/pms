@@ -201,6 +201,13 @@ class BackendGuesty(models.Model):
         if reservation_last_date:
             self.reservation_pull_start_date = reservation_last_date
 
+    def download_calendars(self):
+        properties = self.env["pms.property"].search([("guesty_id", "!=", False)])
+        for property_id in properties:
+            self.env["pms.guesty.calendar"].with_delay().guesty_pull_calendar(
+                self, property_id, "2021-12-01", "2022-12-31"
+            )
+
     def call_get_request(
         self, url_path, params=None, skip=0, limit=25, success_codes=None
     ):

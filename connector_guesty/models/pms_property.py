@@ -143,3 +143,13 @@ class PmsProperty(models.Model):
         property_data["max_nights"] = max_nights
 
         return guesty_id, property_data
+
+    def property_get_price(self):
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Calendar Wizard",
+            "res_model": "pms.guesty.calendar.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"default_property_id": self.id},
+        }

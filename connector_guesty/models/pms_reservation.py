@@ -87,7 +87,7 @@ class PmsReservation(models.Model):
 
             if success:
                 for calendar in calendars:
-                    if calendar.get("status") == "unavailable":
+                    if calendar.get("status") != "available":
                         raise ValidationError(
                             _("Date {}, are not available to be blocked").format(
                                 calendar.get("date")
