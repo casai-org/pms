@@ -2,8 +2,10 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import datetime
 import logging
+import pytz
 
-from odoo import fields, models
+from odoo import fields, models, _
+from odoo.exceptions import ValidationError
 
 _log = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ class PmsProperty(models.Model):
     _inherit = "pms.property"
 
     guesty_id = fields.Char(copy=False)
+    calendar_ids = fields.One2many("pms.guesty.calendar", "property_id")
 
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()
@@ -153,3 +156,41 @@ class PmsProperty(models.Model):
             "target": "new",
             "context": {"default_property_id": self.id},
         }
+
+    def guesty_get_calendars(self, start, stop):
+        utc = pytz.UTC
+        tz = pytz.timezone(self.tz or "America/Mexico_City")
+
+        start_localized = utc.localize(start).astimezone(tz)
+        stop_localized = utc.localize(stop).astimezone(tz)
+
+        backend = self.env.company.guesty_backend_id
+        success, results = backend.call_get_request(
+            url_path="listings/{}/calendar".format(self.guesty_id),
+            params={
+                "fields": ", ".join([
+                    "status"
+                ]),
+                "from": start_localized.strftime("%Y-%m-%d"),
+                "to": stop_localized.strftime("%Y-%m-%d"),
+            }
+        )
+
+        if not success:
+            raise ValidationError(_("Unable to get calendar information"))
+
+        return results
+
+    def odoo_get_calendars(self, start, stop):
+        utc = pytz.UTC
+        tz = pytz.timezone(self.tz or "America/Mexico_City")
+
+        start_localized = utc.localize(start).astimezone(tz)
+        stop_localized = utc.localize(stop).astimezone(tz)
+
+        calendars = self.env["pms.guesty.calendar"].sudo().search([
+            ("listing_date", ">=", start_localized.date()),
+            ("listing_date", "<=", stop_localized.date())
+        ])
+
+        return calendars

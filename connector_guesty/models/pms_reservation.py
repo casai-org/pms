@@ -3,6 +3,8 @@
 import datetime
 import logging
 
+import pytz
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -13,6 +15,15 @@ class PmsReservation(models.Model):
     _inherit = "pms.reservation"
 
     guesty_id = fields.Char()
+
+    @api.model
+    def create(self, values):
+        res = super(PmsReservation, self).create(values)
+        if not res.property_id.guesty_id:
+            raise ValidationError(_("Property not linked to guesty"))
+
+        res.with_delay().guesty_push_reservation()
+        return res
 
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
@@ -31,45 +42,81 @@ class PmsReservation(models.Model):
             if not self.property_id.guesty_id:
                 raise ValidationError(_("Property not linked to guesty"))
 
+            # Validate Dates
+            real_stop_date = self.stop - datetime.timedelta(days=1)
+            calendar_dates = self.property_id.guesty_get_calendars(
+                self.start,
+                real_stop_date
+            )
+
+            if any([calendar["status"] != "available" for calendar in calendar_dates]):
+                raise ValidationError(_("Dates for this reservation are not available"))
+
             # Send to guesty
-            self.with_delay().guesty_push_reservation()
+            self.with_delay().guesty_push_reservation_reserve()
+        return res
+
+    def action_cancel(self):
+        res = super(PmsReservation, self).action_cancel()
+        if self.guesty_id:
+            self.with_delay().guesty_push_reservation_cancel()
         return res
 
     def action_search_customer(self):
         self.guesty_search_customer()
 
+    def guesty_push_reservation_cancel(self):
+        body = {
+            "status": "canceled",
+            "canceledBy": self.env.user.name,
+        }
+        backend = self.env.company.guesty_backend_id
+        success, result = backend.call_put_request(
+            url_path="reservations/{}".format(self.guesty_id),
+            body=body
+        )
+
+        if not success:
+            self.message_post(body="Reservations cannot be canceled")
+            raise UserError("Unable to cancel reservation")
+
+        self.message_post(body="Reservation cancelled successfully on guesty!")
+
+    def guesty_push_reservation_reserve(self):
+        utc = pytz.UTC
+        tz = pytz.timezone(self.property_id.tz or "America/Mexico_City")
+        checkin_localized = utc.localize(self.start).astimezone(tz)
+        checkout_localized = utc.localize(self.stop).astimezone(tz)
+        body = {
+            "status": "reserved",
+            "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
+            "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d")
+        }
+
+        backend = self.env.company.guesty_backend_id
+        success, result = backend.call_put_request(
+            url_path="reservations/{}".format(self.guesty_id),
+            body=body
+        )
+
+        if not success:
+            self.message_post(body="Reservation cannot be reserved")
+            raise UserError("Unable to reserve reservation")
+
+        self.message_post(body="Reservation reserved successfully on guesty!")
+
     def guesty_push_reservation(self):
         backend = self.env.company.guesty_backend_id
-        customer = backend.guesty_search_create_customer(self.partner_id)
 
-        body = {
-            "listingId": self.property_id.guesty_id,
-            "checkInDateLocalized": self.start.strftime("%Y-%m-%d"),
-            "checkOutDateLocalized": self.stop.strftime("%Y-%m-%d"),
-            "guestId": customer.guesty_id,
-            "status": "inquiry",
-        }
+        if not backend:
+            raise ValidationError(_("No backend defined"))
 
         if self.sale_order_id:
             # create a reservation on guesty
-            reservation_line = self.sale_order_id.order_line.filtered(
-                lambda s: s.reservation_ok
-            )
-            if reservation_line:
-                body["money"] = {
-                    "fareAccommodation": reservation_line.price_subtotal,
-                    "currency": self.sale_order_id.currency_id.name,
-                }
-
-            cleaning_line = self.sale_order_id.order_line.filtered(
-                lambda s: s.product_id.id == backend.cleaning_product_id.id
-            )
-
-            if cleaning_line and reservation_line:
-                body["money"]["fareCleaning"] = cleaning_line.price_subtotal
+            body = self.parse_push_reservation_data(backend)
+            body["status"] = "inquiry"
 
             success, res = backend.call_post_request(url_path="reservations", body=body)
-
             if not success:
                 raise UserError(_("Unable to send to guesty"))
 
@@ -118,9 +165,9 @@ class PmsReservation(models.Model):
         if not reservation_id:
             reservation_id = (
                 self.env["pms.reservation"]
-                .sudo()
-                .with_context({"ignore_overlap": True})
-                .create(reservation)
+                    .sudo()
+                    .with_context({"ignore_overlap": True})
+                    .create(reservation)
             )
 
             invoice_lines = payload.get("money", {}).get("invoiceItems")
@@ -184,6 +231,39 @@ class PmsReservation(models.Model):
             "partner_id": pms_guest.partner_id.id,
         }
 
+    def parse_push_reservation_data(self, backend):
+        customer = backend.guesty_search_create_customer(self.partner_id)
+
+        utc = pytz.UTC
+        tz = pytz.timezone(self.property_id.tz or "America/Mexico_City")
+        checkin_localized = utc.localize(self.start).astimezone(tz)
+        checkout_localized = utc.localize(self.stop).astimezone(tz)
+
+        body = {
+            "listingId": self.property_id.guesty_id,
+            "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
+            "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
+            "guestId": customer.guesty_id,
+        }
+
+        reservation_line = self.sale_order_id.order_line.filtered(
+            lambda s: s.reservation_ok
+        )
+        if reservation_line:
+            body["money"] = {
+                "fareAccommodation": reservation_line.price_subtotal,
+                "currency": self.sale_order_id.currency_id.name,
+            }
+
+        cleaning_line = self.sale_order_id.order_line.filtered(
+            lambda s: s.product_id.id == backend.cleaning_product_id.id
+        )
+
+        if cleaning_line and reservation_line:
+            body["money"]["fareCleaning"] = cleaning_line.price_subtotal
+
+        return body
+
     def build_so(self, guesty_invoice_items, no_nights, status, backend):
         # Create SO based on reservation
         # When the reservation was created out of odoo
@@ -234,8 +314,8 @@ class PmsReservation(models.Model):
 
             so = (
                 self.env["sale.order"]
-                .sudo()
-                .create(
+                    .sudo()
+                    .create(
                     {
                         "partner_id": self.partner_id.id,
                         "order_line": [(0, False, line) for line in order_lines],
