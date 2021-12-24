@@ -45,8 +45,7 @@ class PmsReservation(models.Model):
             # Validate Dates
             real_stop_date = self.stop - datetime.timedelta(days=1)
             calendar_dates = self.property_id.guesty_get_calendars(
-                self.start,
-                real_stop_date
+                self.start, real_stop_date
             )
 
             if any([calendar["status"] != "available" for calendar in calendar_dates]):
@@ -72,8 +71,7 @@ class PmsReservation(models.Model):
         }
         backend = self.env.company.guesty_backend_id
         success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id),
-            body=body
+            url_path="reservations/{}".format(self.guesty_id), body=body
         )
 
         if not success:
@@ -90,13 +88,12 @@ class PmsReservation(models.Model):
         body = {
             "status": "reserved",
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
-            "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d")
+            "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
         }
 
         backend = self.env.company.guesty_backend_id
         success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id),
-            body=body
+            url_path="reservations/{}".format(self.guesty_id), body=body
         )
 
         if not success:
@@ -165,9 +162,9 @@ class PmsReservation(models.Model):
         if not reservation_id:
             reservation_id = (
                 self.env["pms.reservation"]
-                    .sudo()
-                    .with_context({"ignore_overlap": True})
-                    .create(reservation)
+                .sudo()
+                .with_context({"ignore_overlap": True})
+                .create(reservation)
             )
 
             invoice_lines = payload.get("money", {}).get("invoiceItems")
@@ -314,8 +311,8 @@ class PmsReservation(models.Model):
 
             so = (
                 self.env["sale.order"]
-                    .sudo()
-                    .create(
+                .sudo()
+                .create(
                     {
                         "partner_id": self.partner_id.id,
                         "order_line": [(0, False, line) for line in order_lines],

@@ -2,9 +2,10 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import datetime
 import logging
+
 import pytz
 
-from odoo import fields, models, _
+from odoo import _, fields, models
 from odoo.exceptions import ValidationError
 
 _log = logging.getLogger(__name__)
@@ -168,12 +169,10 @@ class PmsProperty(models.Model):
         success, results = backend.call_get_request(
             url_path="listings/{}/calendar".format(self.guesty_id),
             params={
-                "fields": ", ".join([
-                    "status"
-                ]),
+                "fields": ", ".join(["status"]),
                 "from": start_localized.strftime("%Y-%m-%d"),
                 "to": stop_localized.strftime("%Y-%m-%d"),
-            }
+            },
         )
 
         if not success:
@@ -188,9 +187,15 @@ class PmsProperty(models.Model):
         start_localized = utc.localize(start).astimezone(tz)
         stop_localized = utc.localize(stop).astimezone(tz)
 
-        calendars = self.env["pms.guesty.calendar"].sudo().search([
-            ("listing_date", ">=", start_localized.date()),
-            ("listing_date", "<=", stop_localized.date())
-        ])
+        calendars = (
+            self.env["pms.guesty.calendar"]
+            .sudo()
+            .search(
+                [
+                    ("listing_date", ">=", start_localized.date()),
+                    ("listing_date", "<=", stop_localized.date()),
+                ]
+            )
+        )
 
         return calendars
