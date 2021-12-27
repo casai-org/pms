@@ -13,8 +13,8 @@ class SaleOrderLine(models.Model):
 
     @api.onchange("product_uom", "product_uom_qty")
     def product_uom_change(self):
-        super(SaleOrderLine, self).product_uom_change()
-        if self.reservation_id:
+        super().product_uom_change()
+        if self.company_id.guesty_backend_id and self.reservation_id:
             # get calendar data from guesty
             if not self.property_id:
                 raise ValidationError(_("No property defined on SO for reservation"))
@@ -25,11 +25,6 @@ class SaleOrderLine(models.Model):
             if not self.start or not self.stop:
                 raise ValidationError(_("Invalid dates on SO reservation"))
 
-            backend = self.company_id.guesty_backend_id
-
-            if not backend:
-                raise ValidationError(_("No backend defined"))
-
             # self.env["pms.guesty.calendar"].compute_price(
             #     self.property_id,
             #     self.start,
@@ -37,7 +32,7 @@ class SaleOrderLine(models.Model):
             #     self.order_id.currency_id
             # )
 
-            success, result = backend.call_get_request(
+            success, result = self.company_id.guesty_backend_id.call_get_request(
                 url_path="listings/{}/calendar".format(self.property_id.guesty_id),
                 params={
                     "from": self.start.strftime("%Y-%m-%d"),
