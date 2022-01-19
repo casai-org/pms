@@ -12,6 +12,7 @@
         "views/pms_reservation.xml",
         "views/pms_guesty_calendar_wizard.xml",
         "views/res_partner.xml",
+        "views/sale_order_views.xml",
         "security/ir.model.access.csv",
         "data/queue.job.function.csv",
     ],
