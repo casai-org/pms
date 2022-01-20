@@ -122,7 +122,7 @@ class PmsProperty(models.Model):
             return price_id
 
     def guesty_parse_listing(self, payload, backend):
-        guesty_id = payload.get("id")
+        guesty_id = payload.get("_id")
         property_data = {
             "guesty_id": guesty_id,
             "name": payload.get("title"),
