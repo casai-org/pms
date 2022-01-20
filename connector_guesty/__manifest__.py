@@ -19,5 +19,5 @@
     "installable": True,
     "development_status": "Beta",
     "maintainers": ["JorgeJuarezCasai"],
-    "external_dependencies": {"python": ["bs4", "pycountry", "xlrd", "html2text"]},
+    "external_dependencies": {"python": ["html2text"]},
 }
