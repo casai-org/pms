@@ -6,7 +6,7 @@ import logging
 
 import requests
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 _log = logging.getLogger(__name__)
@@ -16,32 +16,72 @@ class BackendGuesty(models.Model):
     _name = "backend.guesty"
     _description = "Guesty Backend"
 
+    guesty_account_id = fields.Char()
+    guesty_environment = fields.Selection(
+        [("prod", "Production V2"), ("dev", "Development V2")],
+        default="dev",
+        required=True,
+    )
+
     name = fields.Char(required=True)
     api_key = fields.Char(required=True)
     api_secret = fields.Char(required=True)
-    api_url = fields.Char(required=True)
     reservation_pull_start_date = fields.Datetime()
 
     cleaning_product_id = fields.Many2one("product.product")
     extra_product_id = fields.Many2one("product.product")
 
-    base_url = fields.Char(default="https://app-sandbox.guesty.com", required=True)
+    api_url = fields.Char(required=True, compute="_compute_environment_fields")
+    base_url = fields.Char(compute="_compute_environment_fields", required=True)
+    crm_lead_rule_ids = fields.One2many("crm.lead.rule", "backend_id")
+    is_default = fields.Boolean(default=False)
+
+    active = fields.Boolean(default=True, required=True)
+
+    @api.depends("guesty_environment")
+    def _compute_environment_fields(self):
+        # noinspection PyTypeChecker
+        for record in self:
+            map_values = self._map_environment_data(record.guesty_environment)
+            for field_name in map_values:
+                record[field_name] = map_values[field_name]
+
+    # noinspection PyMethodMayBeStatic
+    def _map_environment_data(self, guesty_env):
+        if guesty_env == "prod":
+            return {
+                "api_url": "https://api.guesty.com/api/v2",
+                "base_url": "https://app.guesty.com",
+            }
+        else:
+            return {
+                "api_url": "https://api.sandbox.guesty.com/api/v2",
+                "base_url": "https://app-sandbox.guesty.com",
+            }
+
+    def set_as_default(self):
+        self.sudo().search([("is_default", "=", True)]).write({"is_default": False})
+        self.write({"is_default": True})
+
+        self.env.company.guesty_backend_id = self.id
 
     def check_credentials(self):
         # url to validate the credentials
         # this endpoint will search a list of users, it may be empty if the api key
         # does not have permissions to list the users, but it should be a 200 response
         # Note: Guesty does not provide a way to validate credentials
-        success, result = self.call_get_request("search", limit=1)
+        success, result = self.call_get_request("accounts/me", limit=1)
         if success:
-            raise UserError(
-                _("Connection Test Succeeded! Everything seems properly set up!")
-            )
+            _id = result.get("_id")
+            self.write({"guesty_account_id": _id, "active": True})
         else:
             raise UserError(_("Connection Test Failed!"))
 
-    def action_test_guest(self):
-        self.guesty_search_customer("61ba45ea91a58a00328beca4")
+    def reset_credentials(self):
+        if self.env.company.guesty_backend_id.id == self.id:
+            self.env.company.guesty_backend_id = False
+
+        self.write({"active": False, "is_default": False})
 
     def guesty_search_create_customer(self, partner):
         guesty_partner = self.env["res.partner.guesty"].search(
@@ -231,14 +271,18 @@ class BackendGuesty(models.Model):
         params.update({"skip": str(skip), "limit": str(limit)})
 
         url = "{}/{}".format(self.api_url, url_path)
-        result = requests.get(
-            url=url, params=params, auth=(self.api_key, self.api_secret)
-        )
+        try:
+            result = requests.get(
+                url=url, params=params, auth=(self.api_key, self.api_secret)
+            )
 
-        if result.status_code in success_codes:
-            return True, result.json()
+            if result.status_code in success_codes:
+                return True, result.json()
 
-        _log.error(result.content)
+            _log.error(result.content)
+        except Exception as ex:
+            _log.error(ex)
+
         return False, None
 
     def call_post_request(self, url_path, body):

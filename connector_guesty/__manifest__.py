@@ -5,6 +5,7 @@
     "version": "14.0.1.0.0",
     "license": "AGPL-3",
     "depends": ["pms_base", "pms_sale", "queue_job", "sale_automatic_workflow", "payment"],
+    "depends": ["pms_sale", "queue_job", "sale_automatic_workflow", "payment", "crm"],
     "data": [
         "views/backend_guesty.xml",
         "views/pms_property.xml",
@@ -20,4 +21,5 @@
     "installable": True,
     "development_status": "Beta",
     "maintainers": ["JorgeJuarezCasai"],
+    "external_dependencies": {"python": ["html2text"]},
 }
