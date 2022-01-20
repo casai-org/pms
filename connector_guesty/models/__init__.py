@@ -13,4 +13,6 @@ from . import (
     sale_order,
     sale_order_line,
     payment_transaction,
+    crm_lead,
+    crm_rules,
 )

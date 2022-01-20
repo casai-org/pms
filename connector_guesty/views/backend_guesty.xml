@@ -50,8 +50,26 @@
                                     <field name="reservation_pull_start_date" />
                                     <field name="cleaning_product_id" />
                                     <field name="extra_product_id" />
+
                                 </group>
                             </group>
+                            <field name="crm_lead_rule_ids">
+                                <tree create="1">
+                                    <field name="expression_string" />
+                                    <field name="lead_field" />
+                                    <field name="is_html" />
+                                </tree>
+                                <form>
+                                    <label for="expression_string" />
+                                    <field name="expression_string" />
+                                    <group>
+                                        <group>
+                                            <field name="lead_field" />
+                                            <field name="is_html" />
+                                        </group>
+                                    </group>
+                                </form>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
