@@ -5,7 +5,7 @@ import logging
 
 import pytz
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 _log = logging.getLogger(__name__)
@@ -23,6 +23,16 @@ class PmsProperty(models.Model):
 
     guesty_id = fields.Char(copy=False)
     calendar_ids = fields.One2many("pms.guesty.calendar", "property_id")
+    days_quotation_expiration = fields.Integer(string="Days to quotation expiration", default=1)
+
+    @api.constrains("days_quotation_expiration")
+    def check_days_quotation_expiration(self):
+        if self.days_quotation_expiration > 2:
+            raise ValidationError("Maximum of  2 days for 'Days to quotation expiration'")
+
+    @api.onchange("days_quotation_expiration")
+    def _onchange_days_quotation_expiration(self):
+        self.check_days_quotation_expiration()
 
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()

@@ -1,8 +1,9 @@
 # Copyright (C) 2021 Casai (https://www.casai.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
+from datetime import datetime, timedelta
 
-from odoo import models
+from odoo import api, models
 
 _log = logging.getLogger(__name__)
 
@@ -36,3 +37,11 @@ class SaleOrder(models.Model):
         )
         reservation_ids.action_cancel()
         return super().action_cancel()
+
+    @api.onchange("order_line")
+    def _onchange_validity_date(self):
+        for order_line in self.order_line:
+            if order_line.property_id:
+                days_quotation_expiration = order_line.property_id.days_quotation_expiration
+                self.validity_date = datetime.now() + timedelta(days=days_quotation_expiration)
+                break
