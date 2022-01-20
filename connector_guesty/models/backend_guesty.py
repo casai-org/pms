@@ -26,6 +26,7 @@ class BackendGuesty(models.Model):
     extra_product_id = fields.Many2one("product.product")
 
     base_url = fields.Char(default="https://app-sandbox.guesty.com", required=True)
+    crm_lead_rule_ids = fields.One2many("crm.lead.rule", "backend_id")
 
     def check_credentials(self):
         # url to validate the credentials
