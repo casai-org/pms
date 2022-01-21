@@ -293,7 +293,7 @@ class BackendGuesty(models.Model):
             return True, result.json()
         else:
             _log.error(result.content)
-            return False, None
+            return False, result.content.decode()
 
     def call_put_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)

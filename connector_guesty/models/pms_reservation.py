@@ -173,7 +173,7 @@ class PmsReservation(models.Model):
             url_path="reservations/{}".format(self.guesty_id), body=body
         )
         if not success:
-            raise UserError(_("Unable to send to guesty"))
+            raise UserError(_("Unable to send to guesty") + str(res))
 
     # def guesty_push_reservation_extra_lines(self):
     #     if self.guesty_id and self.sale_order_id and self.env.company.guesty_backend_id:
@@ -191,6 +191,10 @@ class PmsReservation(models.Model):
 
             success, res = backend.call_post_request(url_path="reservations", body=body)
             if not success:
+                if "Invalid dates" in res:
+                    raise ValidationError(
+                        _("Invalid dates {} - {}".format(self.start, self.stop))
+                    )
                 raise UserError(_("Unable to send to guesty"))
 
             guesty_id = res.get("_id")
@@ -383,68 +387,11 @@ class PmsReservation(models.Model):
 
         context = {"ignore_guesty_push": True}
         if status in ["inquiry", "reserved", "confirmed"]:
-            order_lines = []
-            for line in guesty_invoice_items:
-                if line.get("type") in ["TAX", "CITY_TAX"]:
-                    continue  # ignore the tax items
-                elif line.get("type") == "ACCOMMODATION_FARE":
-                    reservation_type = self.property_id.reservation_ids.filtered(
-                        lambda s: s.is_guesty_price
-                    )
-
-                    if not reservation_type:
-                        raise ValidationError(_("Missing guesty reservation type"))
-
-                    line_amount = line.get("amount")
-                    line_amount = float(line_amount)
-                    line_price_unit = line_amount / no_nights
-                    order_lines.append(
-                        {
-                            "product_id": reservation_type.product_id.id,
-                            "name": reservation_type.display_name,
-                            "product_uom_qty": no_nights,
-                            "price_unit": line_price_unit,
-                            "property_id": self.property_id.id,
-                            "reservation_id": reservation_type.id,
-                            "pms_reservation_id": self.id,
-                            "start": self.start,
-                            "stop": self.stop,
-                            "no_of_guests": 1,  # Todo: Set correct number of guests
-                        }
-                    )
-                elif line.get("type") == "CLEANING_FEE":
-                    order_lines.append(
-                        {
-                            "product_id": backend.sudo().cleaning_product_id.id,
-                            "name": backend.sudo().cleaning_product_id.name,
-                            "product_uom_qty": 1,
-                            "price_unit": line.get("amount"),
-                        }
-                    )
-                else:
-                    line_amount = line.get("amount")
-                    line_amount = float(line_amount)
-
-                    order_lines.append(
-                        {
-                            "guesty_is_locked": line.get("isLocked") or False,
-                            "guesty_type": line.get("type"),
-                            "guesty_normal_type": line.get("normalType"),
-                            "guesty_second_identifier": line.get("secondIdentifier"),
-                            "product_id": backend.sudo().extra_product_id.id,
-                            "name": line.get("title"),
-                            "product_uom_qty": 1,
-                            "price_unit": line_amount,
-                        }
-                    )
-
             if not self.sale_order_id:
-                accommodation_line = [
-                    line
-                    for line in guesty_invoice_items
-                    if line.get("type") == "ACCOMMODATION_FARE"
-                ]
-                guesty_currency = accommodation_line[0].get("currency")
+                guesty_currency = None
+                for line in guesty_invoice_items:
+                    guesty_currency = line.get("currency")
+                    break
                 if not guesty_currency:
                     guesty_currency = "USD"
 
@@ -477,7 +424,6 @@ class PmsReservation(models.Model):
                         {
                             "partner_id": self.partner_id.id,
                             "pricelist_id": price_list.id,
-                            "order_line": [(0, False, line) for line in order_lines],
                         }
                     )
                 )
@@ -485,20 +431,14 @@ class PmsReservation(models.Model):
                 self.sudo().with_context({"ignore_guesty_push": True}).write(
                     {"sale_order_id": so.id}
                 )
-            elif self.sale_order_id.state == "draft":
-                # noinspection PyTypeChecker
-                updated_lines = [(6, False, False)] + [
-                    (0, False, line) for line in order_lines
-                ]
-                self.sale_order_id.with_context({"ignore_guesty_push": True}).write(
-                    {"order_line": updated_lines}
-                )
 
-            if (
-                status in ["reserved", "confirmed"]
-                and self.sale_order_id.state == "draft"
-            ):
-                self.sale_order_id.with_context(
+            else:
+                so = self.sale_order_id
+
+            self.build_lines(guesty_invoice_items, so, no_nights)
+
+            if status in ["reserved", "confirmed"] and so.state == "draft":
+                so.with_context(
                     context
                 ).action_confirm()  # confirm the SO -> Reservation booked
 
@@ -513,6 +453,86 @@ class PmsReservation(models.Model):
                 self.sale_order_id.with_context(context).action_cancel()
             elif cancel_stage_id.id != self.stage_id.id:
                 self.with_context(context).action_cancel()
+
+    def build_lines(self, invoice_lines, so, no_nights):
+        # know if we have the accommodation line in the order
+        order_lines = []
+        acc_item_list = [
+            a for a in invoice_lines if a.get("type") == "ACCOMMODATION_FARE"
+        ]
+        if len(acc_item_list) > 0:
+            acc_item_line = acc_item_list[0]
+
+            reservation_type = self.property_id.reservation_ids.filtered(
+                lambda s: s.is_guesty_price
+            )
+
+            if not reservation_type:
+                raise ValidationError(_("Missing guesty reservation type"))
+
+            line_amount = acc_item_line.get("amount")
+            line_amount = float(line_amount)
+            line_price_unit = line_amount / no_nights
+            line_payload = {
+                "product_id": reservation_type.product_id.id,
+                "name": reservation_type.display_name,
+                "product_uom_qty": no_nights,
+                "price_unit": line_price_unit,
+                "property_id": self.property_id.id,
+                "reservation_id": reservation_type.id,
+                "pms_reservation_id": self.id,
+                "start": self.start,
+                "stop": self.stop,
+                "no_of_guests": 1,  # Todo: Set correct number of guests
+            }
+
+            acc_line = so.order_line.filtered(lambda s: s.reservation_ok)
+            if acc_line:
+                order_lines.append((1, acc_line.id, line_payload))
+            else:
+                order_lines.append((0, False, line_payload))
+
+        # remove the lines are not the accommodation one
+        so.order_line.filtered(lambda s: not s.reservation_ok).unlink()
+        backend = self.env.company.guesty_backend_id
+        for item in invoice_lines:
+            if item.get("type") in ["TAX", "CITY_TAX", "ACCOMMODATION_FARE"]:
+                continue
+            elif item.get("type") == "CLEANING_FEE":
+                order_lines.append(
+                    (
+                        0,
+                        False,
+                        {
+                            "product_id": backend.sudo().cleaning_product_id.id,
+                            "name": backend.sudo().cleaning_product_id.name,
+                            "product_uom_qty": 1,
+                            "price_unit": item.get("amount"),
+                        },
+                    )
+                )
+            else:
+                line_amount = item.get("amount")
+                line_amount = float(line_amount)
+
+                order_lines.append(
+                    (
+                        0,
+                        False,
+                        {
+                            "guesty_is_locked": item.get("isLocked") or False,
+                            "guesty_type": item.get("type"),
+                            "guesty_normal_type": item.get("normalType"),
+                            "guesty_second_identifier": item.get("secondIdentifier"),
+                            "product_id": backend.sudo().extra_product_id.id,
+                            "name": item.get("title"),
+                            "product_uom_qty": 1,
+                            "price_unit": line_amount,
+                        },
+                    )
+                )
+
+        so.with_context({"ignore_guesty_push": True}).write({"order_line": order_lines})
 
     def action_view_guesty_reservation(self):
         if self.guesty_id:
