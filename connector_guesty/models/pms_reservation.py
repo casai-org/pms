@@ -385,27 +385,23 @@ class PmsReservation(models.Model):
         if not backend:
             raise ValidationError(_("No Backend defined"))
 
+        guesty_currency = None
+        for line in guesty_invoice_items:
+            guesty_currency = line.get("currency")
+            break
+        if not guesty_currency:
+            guesty_currency = "USD"
+
+        currency_id = (
+            self.env["res.currency"].sudo().search([("name", "=", guesty_currency)])
+        )
+
+        if not currency_id:
+            raise ValidationError(_("Currency: {} Not found").format(guesty_currency))
+
         context = {"ignore_guesty_push": True}
         if status in ["inquiry", "reserved", "confirmed"]:
             if not self.sale_order_id:
-                guesty_currency = None
-                for line in guesty_invoice_items:
-                    guesty_currency = line.get("currency")
-                    break
-                if not guesty_currency:
-                    guesty_currency = "USD"
-
-                currency_id = (
-                    self.env["res.currency"]
-                    .sudo()
-                    .search([("name", "=", guesty_currency)])
-                )
-
-                if not currency_id:
-                    raise ValidationError(
-                        _("Currency: {} Not found").format(guesty_currency)
-                    )
-
                 price_list = (
                     self.env["product.pricelist"]
                     .sudo()
@@ -435,7 +431,7 @@ class PmsReservation(models.Model):
             else:
                 so = self.sale_order_id
 
-            self.build_lines(guesty_invoice_items, so, no_nights)
+            self.build_lines(guesty_invoice_items, so, no_nights, currency_id)
 
             if status in ["reserved", "confirmed"] and so.state == "draft":
                 so.with_context(
@@ -454,7 +450,7 @@ class PmsReservation(models.Model):
             elif cancel_stage_id.id != self.stage_id.id:
                 self.with_context(context).action_cancel()
 
-    def build_lines(self, invoice_lines, so, no_nights):
+    def build_lines(self, invoice_lines, so, no_nights, currency_id):
         # know if we have the accommodation line in the order
         order_lines = []
         acc_item_list = [
@@ -477,7 +473,12 @@ class PmsReservation(models.Model):
                 "product_id": reservation_type.product_id.id,
                 "name": reservation_type.display_name,
                 "product_uom_qty": no_nights,
-                "price_unit": line_price_unit,
+                "price_unit": currency_id._convert(
+                    line_price_unit,
+                    so.currency_id,
+                    so.company_id,
+                    so.date_order,
+                ),
                 "property_id": self.property_id.id,
                 "reservation_id": reservation_type.id,
                 "pms_reservation_id": self.id,
@@ -507,7 +508,12 @@ class PmsReservation(models.Model):
                             "product_id": backend.sudo().cleaning_product_id.id,
                             "name": backend.sudo().cleaning_product_id.name,
                             "product_uom_qty": 1,
-                            "price_unit": item.get("amount"),
+                            "price_unit": currency_id._convert(
+                                item.get("amount", 0.0),
+                                so.currency_id,
+                                so.company_id,
+                                so.date_order,
+                            ),
                         },
                     )
                 )
@@ -527,7 +533,12 @@ class PmsReservation(models.Model):
                             "product_id": backend.sudo().extra_product_id.id,
                             "name": item.get("title"),
                             "product_uom_qty": 1,
-                            "price_unit": line_amount,
+                            "price_unit": currency_id._convert(
+                                line_amount,
+                                so.currency_id,
+                                so.company_id,
+                                so.date_order,
+                            ),
                         },
                     )
                 )
