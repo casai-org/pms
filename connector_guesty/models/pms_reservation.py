@@ -315,8 +315,11 @@ class PmsReservation(models.Model):
             lambda s: s.reservation_ok
         )
         if reservation_line:
+            fare_acc_amount = (
+                reservation_line.price_unit * reservation_line.product_uom_qty
+            )
             fare_accomodation = self.sale_order_id.currency_id._convert(
-                reservation_line.price_subtotal,
+                fare_acc_amount,
                 guesty_listing_price.currency_id,
                 self.sale_order_id.company_id,
                 self.sale_order_id.date_order,
@@ -325,6 +328,22 @@ class PmsReservation(models.Model):
                 "fareAccommodation": fare_accomodation,
                 "currency": guesty_listing_price.currency_id.name,
             }
+
+            if reservation_line.discount != 0:
+                discount_amount = fare_accomodation / 100.0 * reservation_line.discount
+                if "invoiceItems" not in body["money"]:
+                    body["money"]["invoiceItems"] = []
+
+                body["money"]["invoiceItems"].append(
+                    {
+                        "type": "MANUAL",
+                        "normalType": "AFD",
+                        "secondIdentifier": "ACCOMMODATION_FARE_DISCOUNT",
+                        "amount": discount_amount,
+                        "currency": guesty_listing_price.currency_id.name,
+                        "title": "Fare Accommodation Discount",
+                    }
+                )
 
         cleaning_line = self.sale_order_id.order_line.filtered(
             lambda s: s.product_id.id == backend.cleaning_product_id.id
@@ -346,7 +365,9 @@ class PmsReservation(models.Model):
         )
 
         if extra_lines:
-            body["money"]["invoiceItems"] = []
+            if "invoiceItems" not in body["money"]:
+                body["money"]["invoiceItems"] = []
+
             for line in extra_lines:
                 fare_extra = self.sale_order_id.currency_id._convert(
                     line.price_subtotal,
@@ -371,7 +392,8 @@ class PmsReservation(models.Model):
 
                 body["money"]["invoiceItems"].append(line_payload)
         else:
-            body["money"]["invoiceItems"] = []
+            if "invoiceItems" not in body["money"]:
+                body["money"]["invoiceItems"] = []
 
         return body
 
@@ -431,7 +453,13 @@ class PmsReservation(models.Model):
             else:
                 so = self.sale_order_id
 
+            current_state = so.state
+            if current_state == "sale":
+                so.with_context(context).write({"state": "draft"})
             self.build_lines(guesty_invoice_items, so, no_nights, currency_id)
+
+            if current_state == "sale" and so.state != "sale":
+                so.with_context(context).write({"state": "sale"})
 
             if status in ["reserved", "confirmed"] and so.state == "draft":
                 so.with_context(
@@ -445,13 +473,28 @@ class PmsReservation(models.Model):
             cancel_stage_id = self.env.ref(
                 "pms_sale.pms_stage_cancelled", raise_if_not_found=False
             )
-            if self.sale_order_id and self.sale_order_id not in ["cancel"]:
+            if self.sale_order_id and self.sale_order_id.state not in ["cancel"]:
                 self.sale_order_id.with_context(context).action_cancel()
             elif cancel_stage_id.id != self.stage_id.id:
                 self.with_context(context).action_cancel()
 
     def build_lines(self, invoice_lines, so, no_nights, currency_id):
         # know if we have the accommodation line in the order
+
+        # lines to preserve after the update
+        save_or_update_lines = []
+        # Get the accommodation fare adjustment line
+        acc_fare_discount_list = [
+            a
+            for a in invoice_lines
+            if a.get("type", str()) == "MANUAL"
+            and a.get("normalType", str()) == "AFD"
+            and a.get("secondIdentifier", str()) == "ACCOMMODATION_FARE_DISCOUNT"
+        ]
+        discount_amount = 0
+        if len(acc_fare_discount_list) > 0:
+            discount_amount = acc_fare_discount_list[0].get("amount")
+
         order_lines = []
         acc_item_list = [
             a for a in invoice_lines if a.get("type") == "ACCOMMODATION_FARE"
@@ -468,6 +511,8 @@ class PmsReservation(models.Model):
 
             line_amount = acc_item_line.get("amount")
             line_amount = float(line_amount)
+
+            discount_percent = abs(discount_amount / line_amount * 100.0)
             line_price_unit = line_amount / no_nights
             line_payload = {
                 "product_id": reservation_type.product_id.id,
@@ -479,6 +524,7 @@ class PmsReservation(models.Model):
                     so.company_id,
                     so.date_order,
                 ),
+                "discount": discount_percent,
                 "property_id": self.property_id.id,
                 "reservation_id": reservation_type.id,
                 "pms_reservation_id": self.id,
@@ -489,61 +535,100 @@ class PmsReservation(models.Model):
 
             acc_line = so.order_line.filtered(lambda s: s.reservation_ok)
             if acc_line:
+                save_or_update_lines.append(acc_line.id)
                 order_lines.append((1, acc_line.id, line_payload))
             else:
                 order_lines.append((0, False, line_payload))
 
         # remove the lines are not the accommodation one
-        so.order_line.filtered(lambda s: not s.reservation_ok).unlink()
         backend = self.env.company.guesty_backend_id
         for item in invoice_lines:
+            if (
+                item.get("type", str()) == "MANUAL"
+                and item.get("normalType", str()) == "AFD"
+                and item.get("secondIdentifier", str()) == "ACCOMMODATION_FARE_DISCOUNT"
+            ):
+                # Ignore accommodation discount,
+                # will be added as a discount in the accommodation line
+                continue
             if item.get("type") in ["TAX", "CITY_TAX", "ACCOMMODATION_FARE"]:
+                # Ignore the accommodation fare and taxes, will be added in another process
                 continue
             elif item.get("type") == "CLEANING_FEE":
-                order_lines.append(
-                    (
-                        0,
-                        False,
-                        {
-                            "product_id": backend.sudo().cleaning_product_id.id,
-                            "name": backend.sudo().cleaning_product_id.name,
-                            "product_uom_qty": 1,
-                            "price_unit": currency_id._convert(
-                                item.get("amount", 0.0),
-                                so.currency_id,
-                                so.company_id,
-                                so.date_order,
-                            ),
-                        },
-                    )
+                payload = {
+                    "product_id": backend.sudo().cleaning_product_id.id,
+                    "name": backend.sudo().cleaning_product_id.name,
+                    "product_uom_qty": 1,
+                    "price_unit": currency_id._convert(
+                        item.get("amount", 0.0),
+                        so.currency_id,
+                        so.company_id,
+                        so.date_order,
+                    ),
+                    "guesty_type": item.get("type"),
+                    "guesty_normal_type": item.get("normalType"),
+                    "guesty_second_identifier": item.get("secondIdentifier"),
+                }
+
+                cleaning_fee_line = so.order_line.filtered(
+                    lambda s: s.guesty_type == "CLEANING_FEE"
                 )
+                if cleaning_fee_line:
+                    save_or_update_lines.append(cleaning_fee_line.id)
+                    order_lines.append((1, cleaning_fee_line.id, payload))
+                else:
+                    order_lines.append(
+                        (
+                            0,
+                            False,
+                            payload,
+                        )
+                    )
             else:
                 line_amount = item.get("amount")
                 line_amount = float(line_amount)
 
-                order_lines.append(
-                    (
-                        0,
-                        False,
-                        {
-                            "guesty_is_locked": item.get("isLocked") or False,
-                            "guesty_type": item.get("type"),
-                            "guesty_normal_type": item.get("normalType"),
-                            "guesty_second_identifier": item.get("secondIdentifier"),
-                            "product_id": backend.sudo().extra_product_id.id,
-                            "name": item.get("title"),
-                            "product_uom_qty": 1,
-                            "price_unit": currency_id._convert(
-                                line_amount,
-                                so.currency_id,
-                                so.company_id,
-                                so.date_order,
-                            ),
-                        },
-                    )
+                payload = {
+                    "guesty_is_locked": item.get("isLocked") or False,
+                    "guesty_type": item.get("type"),
+                    "guesty_normal_type": item.get("normalType"),
+                    "guesty_second_identifier": item.get("secondIdentifier"),
+                    "product_id": backend.sudo().extra_product_id.id,
+                    "name": item.get("title"),
+                    "product_uom_qty": 1,
+                    "price_unit": currency_id._convert(
+                        line_amount,
+                        so.currency_id,
+                        so.company_id,
+                        so.date_order,
+                    ),
+                }
+
+                extra_line_obj = so.order_line.filtered(
+                    lambda s: s.id not in save_or_update_lines
+                    and s.guesty_type == item.get("type", str())
+                    and s.guesty_normal_type == item.get("normalType", str())
+                    and s.guesty_second_identifier
+                    == item.get("secondIdentifier", str())
                 )
 
-        so.with_context({"ignore_guesty_push": True}).write({"order_line": order_lines})
+                if extra_line_obj:
+                    extra_line_obj = extra_line_obj[0]
+                    save_or_update_lines.append(extra_line_obj.id)
+                    order_lines.append((1, extra_line_obj.id, payload))
+                else:
+                    order_lines.append(
+                        (
+                            0,
+                            False,
+                            payload,
+                        )
+                    )
+
+        context = {"ignore_guesty_push": True}
+        to_delete = so.order_line.filtered(lambda s: s.id not in save_or_update_lines)
+        to_delete.with_context(context).unlink()
+        so.with_context(context).write({"order_line": order_lines})
 
     def action_view_guesty_reservation(self):
         if self.guesty_id:
