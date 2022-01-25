@@ -15,17 +15,30 @@ class PaymentTransaction(models.Model):
     @api.model
     def create(self, values):
         res = super().create(values)
+        cancel_stage_id = self.env.ref(
+            "pms_sale.pms_stage_cancelled", raise_if_not_found=False
+        )
+
         for sale in res.sale_order_ids:
             if sale.state == "cancel":
                 raise ValidationError(_("Order was canceled"))
 
-            if sale.validity_date and sale.validity_date < datetime.datetime.now().date():
+            if (
+                sale.validity_date
+                and sale.validity_date < datetime.datetime.now().date()
+            ):
                 raise ValidationError(_("Order was expired"))
 
             reservation_id = (
                 self.env["pms.reservation"]
                 .sudo()
-                .search([("sale_order_id", "=", sale.id)], limit=1)
+                .search(
+                    [
+                        ("sale_order_id", "=", sale.id),
+                        ("stage_id", "not in", [cancel_stage_id.id]),
+                    ],
+                    limit=1,
+                )
             )
 
             if reservation_id:
@@ -34,4 +47,27 @@ class PaymentTransaction(models.Model):
                 except Exception as ex:
                     _log.error(ex)
                     raise ValidationError(_("Reservation dates are not available"))
+        return res
+
+    def _set_transaction_done(self):
+        res = super()._set_transaction_done()
+        if self.state == "done" and self.env.company.guesty_backend_id:
+            cancel_stage_id = self.env.ref(
+                "pms_sale.pms_stage_cancelled", raise_if_not_found=False
+            )
+            for sale in self.sale_order_ids:
+                reservation_id = (
+                    self.env["pms.reservation"]
+                    .sudo()
+                    .search(
+                        [
+                            ("sale_order_id", "=", sale.id),
+                            ("stage_id", "not in", [cancel_stage_id.id]),
+                        ],
+                        limit=1,
+                    )
+                )
+                if reservation_id:
+                    reservation_id.guesty_push_payment()
+
         return res

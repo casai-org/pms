@@ -175,9 +175,26 @@ class PmsReservation(models.Model):
         if not success:
             raise UserError(_("Unable to send to guesty") + str(res))
 
-    # def guesty_push_reservation_extra_lines(self):
-    #     if self.guesty_id and self.sale_order_id and self.env.company.guesty_backend_id:
-    #         for line in self.sale_order_id.order_line:
+    def guesty_push_payment(self):
+        backend = self.env.company.guesty_backend_id
+        # give 5 minutes of overdue
+        paid_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        payload = {
+            "amount": self.sale_order_id.amount_total,
+            "paymentMethod": {"method": "CASH"},
+            "shouldBePaidAt": paid_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "paidAt": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "note": "Odoo Payment",
+            "status": "SUCCEEDED",
+        }
+        success, result = backend.call_post_request(
+            url_path="reservations/{}/payments".format(self.guesty_id), body=payload
+        )
+
+        if success:
+            return result
+        else:
+            _log.error(result)
 
     def guesty_push_reservation(self):
         backend = self.env.company.guesty_backend_id
@@ -303,6 +320,12 @@ class PmsReservation(models.Model):
         checkin_localized = utc.localize(self.start).astimezone(tz)
         checkout_localized = utc.localize(self.stop).astimezone(tz)
 
+        guesty_currency = guesty_listing_price.currency_id or self.env.ref(
+            "base.USD", raise_if_not_found=False
+        )
+        if not guesty_currency:
+            guesty_currency = self.env.company.currency_id
+
         body = {
             "listingId": self.property_id.guesty_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
@@ -320,13 +343,13 @@ class PmsReservation(models.Model):
             )
             fare_accomodation = self.sale_order_id.currency_id._convert(
                 fare_acc_amount,
-                guesty_listing_price.currency_id,
+                guesty_currency,
                 self.sale_order_id.company_id,
                 self.sale_order_id.date_order,
             )
             body["money"] = {
                 "fareAccommodation": fare_accomodation,
-                "currency": guesty_listing_price.currency_id.name,
+                "currency": guesty_currency.name,
             }
 
             if reservation_line.discount != 0:
@@ -340,7 +363,7 @@ class PmsReservation(models.Model):
                         "normalType": "AFD",
                         "secondIdentifier": "ACCOMMODATION_FARE_DISCOUNT",
                         "amount": discount_amount,
-                        "currency": guesty_listing_price.currency_id.name,
+                        "currency": guesty_currency.name,
                         "title": "Fare Accommodation Discount",
                     }
                 )
@@ -380,7 +403,7 @@ class PmsReservation(models.Model):
                     "type": "MANUAL",
                     "title": line.name,
                     "amount": fare_extra,
-                    "currency": guesty_listing_price.currency_id.name,
+                    "currency": guesty_currency.name,
                 }
 
                 if line.guesty_type:
