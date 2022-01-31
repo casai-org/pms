@@ -389,3 +389,18 @@ class BackendGuesty(models.Model):
                     break
             else:
                 break
+
+    def guesty_get_calendar_info(self, check_in, check_out, property_ids):
+        listing_ids = property_ids.mapped("guesty_id")
+        result = {}
+        for listing_id in listing_ids:
+            success, res = self.call_get_request(
+                url_path="listings/{}/calendar".format(listing_id),
+                params={"from": check_in, "to": check_out},
+            )
+            if success and len(res) > 0:
+                currency = res[0]["currency"]
+                avg_price = sum(a.get("price") for a in res) / len(res)
+                result[listing_id] = {"currency": currency, "price": avg_price}
+
+        return result
