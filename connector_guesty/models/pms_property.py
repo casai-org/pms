@@ -26,6 +26,8 @@ class PmsProperty(models.Model):
     guesty_id = fields.Char(copy=False)
     calendar_ids = fields.One2many("pms.guesty.calendar", "property_id")
 
+    airbnb_url_link = fields.Char()
+
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()
 
@@ -261,3 +263,13 @@ class PmsProperty(models.Model):
         )
 
         return calendars
+
+    def action_airbnb_link(self):
+        if self.airbnb_url_link:
+            return {
+                "type": "ir.actions.act_url",
+                "url": self.airbnb_url_link,
+                "target": "new",
+            }
+        else:
+            raise UserWarning(_("Airbnb url not found"))

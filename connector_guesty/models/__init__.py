@@ -6,6 +6,7 @@ from . import (
     pms_guesty_calendar,
     pms_guesty_calendar_wizard,
     pms_configurator,
+    product,
     res_company,
     res_config_settings,
     res_partner_guesty,

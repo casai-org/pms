@@ -36,3 +36,15 @@ class SaleOrder(models.Model):
         )
         reservation_ids.action_cancel()
         return super().action_cancel()
+
+    def _get_share_url(
+        self, redirect=False, signup_partner=False, pid=None, share_token=True
+    ):
+        _log.info("redirect: {}".format(redirect))
+        _log.info(share_token)
+        return super()._get_share_url(
+            redirect=redirect,
+            signup_partner=signup_partner,
+            pid=pid,
+            share_token=share_token,
+        )
