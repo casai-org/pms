@@ -19,6 +19,19 @@ class SaleOrderLine(models.Model):
         return super().write(values)
 
     def _get_display_price(self, product):
+        _log.info(product.env.context)
+        return super()._get_display_price(
+            product.with_context(
+                {
+                    "property_id": self.sudo().property_id,
+                    "reservation_start": self.start,
+                    "reservation_stop": self.stop,
+                    "reservation_date": self.order_id.date_order,
+                }
+            )
+        )
+
+    def ___get_display_price(self, product):
         if (
             self.company_id.guesty_backend_id
             and self.reservation_ok

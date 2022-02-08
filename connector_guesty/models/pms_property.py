@@ -40,6 +40,8 @@ class PmsProperty(models.Model):
     def _onchange_days_quotation_expiration(self):
         self.check_days_quotation_expiration()
 
+    airbnb_url_link = fields.Char()
+
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()
 
@@ -279,3 +281,13 @@ class PmsProperty(models.Model):
         )
 
         return calendars
+
+    def action_airbnb_link(self):
+        if self.airbnb_url_link:
+            return {
+                "type": "ir.actions.act_url",
+                "url": self.airbnb_url_link,
+                "target": "new",
+            }
+        else:
+            raise UserWarning(_("Airbnb url not found"))
