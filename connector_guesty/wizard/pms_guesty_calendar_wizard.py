@@ -9,6 +9,7 @@ _log = logging.getLogger(__name__)
 
 class PmsGuestyCalendarWizard(models.TransientModel):
     _name = "pms.guesty.calendar.wizard"
+    _description = "Guesty Calendar Wizard"
 
     property_id = fields.Many2one("pms.property")
     start = fields.Datetime()

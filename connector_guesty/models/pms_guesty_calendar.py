@@ -13,6 +13,7 @@ _log = logging.getLogger(__name__)
 
 class PmsGuestyCalendar(models.Model):
     _name = "pms.guesty.calendar"
+    _description = "Guesty Calendar"
 
     listing_id = fields.Char(required=True)
     listing_date = fields.Date(required=True)
@@ -36,7 +37,7 @@ class PmsGuestyCalendar(models.Model):
         (
             "unique_listing_date",
             "unique(listing_id, listing_date)",
-            "you cannot have dates duplicated by listing",
+            _("You cannot have dates duplicated by listing"),
         )
     ]
 
@@ -98,9 +99,8 @@ class PmsGuestyCalendar(models.Model):
 
         days_len = (stop_date_localized.date() - start_date_localized.date()).days
         if days_len != len(calendars):
-            raise ValidationError("Invalid days range")
+            raise ValidationError(_("Invalid days range"))
 
         for calendar_day in calendars:
             _log.info(calendar_day.listing_date)
-
-        raise ValidationError("Looks fine")
+        raise ValidationError(_("Looks fine"))
