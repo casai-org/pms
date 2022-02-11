@@ -215,7 +215,7 @@ class PmsReservation(models.Model):
                 raise UserError(_("Unable to send to guesty"))
 
             guesty_id = res.get("_id")
-            self.guesty_id = guesty_id
+            self.with_context(ignore_guesty_push=True).write({"guesty_id": guesty_id})
         else:
             # retrieve calendars
             success, calendars = backend.call_get_request(
@@ -331,7 +331,7 @@ class PmsReservation(models.Model):
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
             "guestId": customer.guesty_id,
-            "money": {},
+            "money": {"invoiceItems": []},
         }
 
         reservation_line = self.sale_order_id.order_line.filtered(
@@ -372,6 +372,7 @@ class PmsReservation(models.Model):
             lambda s: s.product_id.id == backend.cleaning_product_id.id
         )
 
+        fare_cleaning = 0.0
         if cleaning_line and reservation_line:
             fare_cleaning = self.sale_order_id.currency_id._convert(
                 cleaning_line.price_subtotal,
@@ -379,8 +380,8 @@ class PmsReservation(models.Model):
                 self.sale_order_id.company_id,
                 self.sale_order_id.date_order,
             )
-            body["money"]["fareCleaning"] = fare_cleaning
 
+        body["money"]["fareCleaning"] = fare_cleaning
         extra_lines = self.sale_order_id.order_line.filtered(
             lambda s: not s.reservation_ok
             and s.id != cleaning_line.id
@@ -444,7 +445,7 @@ class PmsReservation(models.Model):
         if not currency_id:
             raise ValidationError(_("Currency: {} Not found").format(guesty_currency))
 
-        context = {"ignore_guesty_push": True}
+        context = {"ignore_guesty_push": True, "ignore_overlap": True}
         if status in ["inquiry", "reserved", "confirmed"]:
             if not self.sale_order_id:
                 price_list = (
@@ -578,6 +579,9 @@ class PmsReservation(models.Model):
                 # Ignore the accommodation fare and taxes, will be added in another process
                 continue
             elif item.get("type") == "CLEANING_FEE":
+                if item.get("amount", 0.0) <= 0.01:
+                    continue
+
                 payload = {
                     "product_id": backend.sudo().cleaning_product_id.id,
                     "name": backend.sudo().cleaning_product_id.name,
