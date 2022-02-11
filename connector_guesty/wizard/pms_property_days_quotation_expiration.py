@@ -2,7 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 _log = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class PmsPropertyDaysQuotationExpiration(models.TransientModel):
     @api.constrains("days_quotation_expiration")
     def check_days_quotation_expiration(self):
         if self.days_quotation_expiration > 2:
-            raise ValidationError("Maximum of  2 days for 'Days to quotation expiration'")
+            raise ValidationError(_("Maximum of  2 days for 'Days to quotation expiration'"))
 
     @api.onchange("days_quotation_expiration")
     def _onchange_days_quotation_expiration(self):

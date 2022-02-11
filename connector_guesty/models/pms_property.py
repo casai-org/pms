@@ -30,7 +30,7 @@ class PmsProperty(models.Model):
     @api.constrains("days_quotation_expiration")
     def check_days_quotation_expiration(self):
         if self.days_quotation_expiration > 2:
-            raise ValidationError("Maximum of  2 days for 'Days to quotation expiration'")
+            raise ValidationError(_("Maximum of  2 days for 'Days to quotation expiration'"))
 
     @api.onchange("days_quotation_expiration")
     def _onchange_days_quotation_expiration(self):
