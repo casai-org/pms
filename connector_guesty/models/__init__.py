@@ -4,7 +4,6 @@ from . import (
     pms_reservation,
     pms_property_reservation,
     pms_guesty_calendar,
-    pms_guesty_calendar_wizard,
     pms_configurator,
     res_company,
     res_config_settings,
@@ -14,5 +13,5 @@ from . import (
     sale_order_line,
     payment_transaction,
     crm_lead,
-    crm_rules,
+    crm_lead_rule,
 )

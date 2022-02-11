@@ -6,6 +6,7 @@ from odoo import fields, models
 
 class CrmLeadRule(models.Model):
     _name = "crm.lead.rule"
+    _description = "Lead rule"
 
     backend_id = fields.Many2one("backend.guesty")
     expression_string = fields.Text()
