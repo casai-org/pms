@@ -16,7 +16,6 @@ class SaleOrderLine(models.Model):
     guesty_second_identifier = fields.Char()
 
     def write(self, values):
-        _log.info(self.env.context)
         return super().write(values)
 
     def _get_display_price(self, product):
