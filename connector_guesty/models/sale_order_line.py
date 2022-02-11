@@ -15,6 +15,9 @@ class SaleOrderLine(models.Model):
     guesty_normal_type = fields.Char()
     guesty_second_identifier = fields.Char()
 
+    def write(self, values):
+        return super().write(values)
+
     def _get_display_price(self, product):
         if (
             self.company_id.guesty_backend_id

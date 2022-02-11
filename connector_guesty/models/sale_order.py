@@ -2,13 +2,17 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
 
-from odoo import models
+from odoo import api, models
 
 _log = logging.getLogger(__name__)
 
 
 class SaleOrder(models.Model):
     _inherit = "sale.order"
+
+    @api.model
+    def create(self, values):
+        return super().create(values)
 
     def write(self, values):
         res = super().write(values)

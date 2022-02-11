@@ -35,10 +35,33 @@ class GuestyController(http.Controller):
         reservation = event.get("reservation")
         if not reservation:
             raise ValidationError(_("Reservation data not found!"))
-        request.env["pms.reservation"].with_delay().guesty_pull_reservation(
-            backend, reservation
+
+        success, res = backend.sudo().call_get_request(
+            url_path="reservations/{}".format(reservation.get("_id")),
+            params={
+                "fields": " ".join(
+                    [
+                        "status",
+                        "checkIn",
+                        "checkOut",
+                        "listingId",
+                        "guestId",
+                        "listing.nickname",
+                        "lastUpdatedAt",
+                        "money",
+                        "nightsCount",
+                    ]
+                )
+            },
         )
-        return {"success": True}
+
+        if success:
+            request.env["pms.reservation"].with_delay().guesty_pull_reservation(
+                backend, reservation
+            )
+            return {"success": True}
+        else:
+            raise ValidationError(str(res))
 
     @http.route(
         "/guesty/listing_webhook",
