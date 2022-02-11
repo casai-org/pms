@@ -306,7 +306,7 @@ class BackendGuesty(models.Model):
                 return True, result.json()
         else:
             _log.error(result.content)
-            return False, None
+            return False, result.content.decode("utf-8")
 
     def download_properties(self):
         property_ids = self.env["pms.property"].sudo().search([])
