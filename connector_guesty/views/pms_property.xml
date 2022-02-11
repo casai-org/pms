@@ -34,6 +34,10 @@
                     </field>
                 </page>
             </xpath>
+
+            <xpath expr="//field[@name='listing_type']" position="after">
+                <field name="days_quotation_expiration"/>
+            </xpath>
         </field>
     </record>
 
