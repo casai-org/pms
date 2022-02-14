@@ -4,12 +4,24 @@ import datetime
 import json
 import logging
 
+import pytz
 import requests
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 _log = logging.getLogger(__name__)
+
+_tzs = [
+    (tz, tz)
+    for tz in sorted(
+        pytz.all_timezones, key=lambda tz: tz if not tz.startswith("Etc/") else "_"
+    )
+]
+
+
+def _tz_get(self):
+    return _tzs
 
 
 class BackendGuesty(models.Model):
@@ -37,6 +49,23 @@ class BackendGuesty(models.Model):
     is_default = fields.Boolean(default=False)
 
     active = fields.Boolean(default=True, required=True)
+    currency_id = fields.Many2one("res.currency")
+    timezone = fields.Selection(_tz_get, string="Timezone")
+
+    stage_canceled_id = fields.Many2one(
+        "pms.stage", domain=[("stage_type", "=", "reservation")]
+    )
+    stage_inquiry_id = fields.Many2one(
+        "pms.stage", domain=[("stage_type", "=", "reservation")]
+    )
+    stage_reserved_id = fields.Many2one(
+        "pms.stage", domain=[("stage_type", "=", "reservation")]
+    )
+    stage_confirmed_id = fields.Many2one(
+        "pms.stage", domain=[("stage_type", "=", "reservation")]
+    )
+
+    cancel_expired_quotes = fields.Boolean(default=False)
 
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
@@ -73,7 +102,22 @@ class BackendGuesty(models.Model):
         success, result = self.call_get_request("accounts/me", limit=1)
         if success:
             _id = result.get("_id")
-            self.write({"guesty_account_id": _id, "active": True})
+            _tz = result.get("timezone")
+            _currency = result.get("currency")
+
+            currency = self.env["res.currency"].search(
+                [("name", "=", _currency)], limit=1
+            )
+            payload = {
+                "guesty_account_id": _id,
+                "active": True,
+                "currency_id": currency.id,
+            }
+
+            if _tz:
+                payload["timezone"] = _tz
+
+            self.write(payload)
         else:
             raise UserError(_("Connection Test Failed!"))
 
