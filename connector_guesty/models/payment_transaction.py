@@ -23,12 +23,6 @@ class PaymentTransaction(models.Model):
             if sale.state == "cancel":
                 raise ValidationError(_("Order was canceled"))
 
-            if (
-                sale.validity_date
-                and sale.validity_date < datetime.datetime.now().date()
-            ):
-                raise ValidationError(_("Order was expired"))
-
             reservation_id = (
                 self.env["pms.reservation"]
                 .sudo()
@@ -42,6 +36,17 @@ class PaymentTransaction(models.Model):
             )
 
             if reservation_id:
+                bypass_stage = reservation_id.stage_id not in [
+                    self.env.company.guesty_backend_id.stage_reserved_id,
+                    self.env.company.guesty_backend_id.stage_confirmed_id,
+                ]
+
+                if (
+                    sale.validity_date
+                    and sale.validity_date < datetime.datetime.now().date()
+                ) and not bypass_stage:
+                    raise ValidationError(_("Order was expired"))
+
                 try:
                     reservation_id.guesty_check_availability()
                 except Exception as ex:

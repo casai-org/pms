@@ -46,6 +46,28 @@ class SaleOrder(models.Model):
     def _onchange_validity_date(self):
         for order_line in self.order_line:
             if order_line.property_id:
-                days_quotation_expiration = order_line.property_id.days_quotation_expiration
-                self.validity_date = datetime.now() + timedelta(days=days_quotation_expiration)
+                days_quotation_expiration = (
+                    order_line.property_id.days_quotation_expiration
+                )
+                self.validity_date = datetime.now() + timedelta(
+                    days=days_quotation_expiration
+                )
                 break
+
+    def sale_get_active_reservation(self):
+        _stage_ids = [
+            self.env.company.guesty_backend_id.stage_reserved_id.id,
+            self.env.company.guesty_backend_id.stage_confirmed_id.id,
+            self.env.company.guesty_backend_id.stage_inquiry_id.id,
+        ]
+
+        _reservation = (
+            self.env["pms.reservation"]
+            .sudo()
+            .search(
+                [("sale_order_id", "=", self.id), ("stage_id", "in", _stage_ids)],
+                limit=1,
+            )
+        )
+
+        return _reservation

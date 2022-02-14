@@ -66,11 +66,20 @@
                             </group>
                         </page>
                         <page string="Actions">
-                            <button
-                                name="download_reservations"
-                                string="Download Reservations"
-                                type="object"
-                            />
+                            <group>
+                                <group>
+                                    <field name="reservation_pull_start_date" />
+                                    <button
+                                        name="download_reservations"
+                                        string="Download Reservations"
+                                        type="object"
+                                    />
+                                </group>
+                                <group>
+                                    <field name="cleaning_product_id" />
+                                    <field name="extra_product_id" />
+                                </group>
+                            </group>
                             <button
                                 name="download_calendars"
                                 string="Download Calendars"
@@ -85,12 +94,19 @@
                         <page string="Configuration">
                             <group>
                                 <group>
-                                    <field name="reservation_pull_start_date" />
-                                    <field name="cleaning_product_id" />
-                                    <field name="extra_product_id" />
-
+                                    <field name="currency_id" />
+                                    <field name="timezone" />
+                                </group>
+                                <group>
+                                    <field name="stage_canceled_id" />
+                                    <field name="stage_inquiry_id" />
+                                    <field name="stage_reserved_id" />
+                                    <field name="stage_confirmed_id" />
+                                    <field name="cancel_expired_quotes" />
                                 </group>
                             </group>
+                        </page>
+                        <page string="CRM Rules">
                             <field name="crm_lead_rule_ids">
                                 <tree create="1">
                                     <field name="expression_string" />

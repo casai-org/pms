@@ -16,6 +16,30 @@ class PmsReservation(models.Model):
 
     guesty_id = fields.Char()
 
+    def _cancel_expired_cron(self):
+        if not self.env.company.guesty_backend_id.cancel_expired_quotes:
+            _log.info("Expired orders cancellation is disabled")
+            return
+
+        _sales = self.env["sale.order"].search(
+            [
+                ("validity_date", "!=", False),
+                ("validity_date", "<", datetime.datetime.now().date()),
+                ("state", "=", "draft"),
+            ]
+        )
+
+        _log.info("Expired sale orders : {}".format(_sales))
+
+        for _sale in _sales:
+            _reservation = _sale.sale_get_active_reservation()
+            if (
+                _reservation
+                and _reservation.stage_id != self.env.company.stage_inquiry_id.id
+            ):
+                _sale.action_cancel()
+                _sale.message_post(body=_("Canceled by expired date"))
+
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
         if self.env.context.get("ignore_overlap"):
@@ -96,6 +120,11 @@ class PmsReservation(models.Model):
         return res
 
     def guesty_check_availability(self):
+        if self.stage_id.id == self.env.ref("pms_sale.pms_stage_booked").id:
+            return True
+        if self.stage_id.id == self.env.ref("pms_sale.pms_stage_confirmed").id:
+            return True
+
         real_stop_date = self.stop - datetime.timedelta(days=1)
         calendar_dates = self.property_id.guesty_get_calendars(
             self.start, real_stop_date
@@ -145,6 +174,7 @@ class PmsReservation(models.Model):
         )
 
         if not success:
+            _log.error(result)
             raise UserError(_("Unable to reserve reservation"))
 
         self.message_post(body=_("Reservation reserved successfully on guesty!"))
@@ -316,15 +346,11 @@ class PmsReservation(models.Model):
         customer = backend.guesty_search_create_customer(self.partner_id)
 
         utc = pytz.UTC
-        tz = pytz.timezone(self.property_id.tz or "America/Mexico_City")
+        tz = pytz.timezone(self.property_id.tz or backend.timezone)
         checkin_localized = utc.localize(self.start).astimezone(tz)
         checkout_localized = utc.localize(self.stop).astimezone(tz)
 
-        guesty_currency = guesty_listing_price.currency_id or self.env.ref(
-            "base.USD", raise_if_not_found=False
-        )
-        if not guesty_currency:
-            guesty_currency = self.env.company.currency_id
+        guesty_currency = guesty_listing_price.currency_id or backend.currency_id
 
         body = {
             "listingId": self.property_id.guesty_id,
@@ -480,17 +506,19 @@ class PmsReservation(models.Model):
             current_state = so.state
             if current_state == "sale":
                 so.with_context(context).write({"state": "draft"})
+
             self.build_lines(guesty_invoice_items, so, no_nights, currency_id)
 
             if current_state == "sale" and so.state != "sale":
                 so.with_context(context).write({"state": "sale"})
 
-            if status in ["reserved", "confirmed"] and so.state == "draft":
+            if status == "reserved":
+                self.with_context(context).action_book()
+
+            if status == "confirmed" and so.state == "draft":
                 so.with_context(
                     context
                 ).action_confirm()  # confirm the SO -> Reservation booked
-
-            if status == "confirmed":
                 self.with_context(context).action_confirm()  # confirm the reservation
 
         elif status in ["canceled", "declined", "expired", "closed"]:
@@ -529,6 +557,9 @@ class PmsReservation(models.Model):
             reservation_type = self.property_id.reservation_ids.filtered(
                 lambda s: s.is_guesty_price
             )
+
+            if not reservation_type and len(self.property_id.reservation_ids) > 0:
+                reservation_type = self.property_id.reservation_ids[0]
 
             if not reservation_type:
                 raise ValidationError(_("Missing guesty reservation type"))
