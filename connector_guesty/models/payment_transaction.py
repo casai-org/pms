@@ -36,7 +36,7 @@ class PaymentTransaction(models.Model):
             )
 
             if reservation_id:
-                bypass_stage = reservation_id.stage_id not in [
+                bypass_stage = reservation_id.stage_id in [
                     self.env.company.guesty_backend_id.stage_reserved_id,
                     self.env.company.guesty_backend_id.stage_confirmed_id,
                 ]
