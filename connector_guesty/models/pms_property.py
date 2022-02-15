@@ -257,7 +257,7 @@ class PmsProperty(models.Model):
         if not success:
             raise ValidationError(_("Unable to get calendar information"))
 
-        return results
+        return results.get("data").get("days")
 
     def odoo_get_calendars(self, start, stop):
         utc = pytz.UTC
