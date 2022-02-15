@@ -353,6 +353,40 @@ class BackendGuesty(models.Model):
             return False, result.content.decode("utf-8")
 
     def download_properties(self):
+        # Search Properties don't have a guesty relation and aren´t a building
+        property_ids = (
+            self.env["pms.property"].sudo().search([("guesty_id", "=", False)])
+        )
+
+        property_ids = property_ids.filtered(lambda s: len(s.property_child_ids) == 0)
+        property_ids.write({"active": False})
+
+        skip = 0
+        while True:
+            success, res = self.call_get_request(
+                url_path="listings",
+                # params={"city": "Ciudad de México"},
+                limit=100,
+                skip=skip,
+            )
+
+            skip += 100
+
+            if success:
+                result = res.get("results", [])
+                for record in result:
+                    action = (
+                        self.env["pms.property"]
+                        .with_delay()
+                        .guesty_pull_listing(self.env.company.guesty_backend_id, record)
+                    )
+                    _log.info(action)
+                if len(result) == 0:
+                    break
+            else:
+                break
+
+    def action_download_properties(self):
         property_ids = self.env["pms.property"].sudo().search([])
 
         skip = 0
