@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 
-from odoo import _, api, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 _log = logging.getLogger(__name__)
@@ -11,6 +11,20 @@ _log = logging.getLogger(__name__)
 
 class SaleOrder(models.Model):
     _inherit = "sale.order"
+
+    pms_reservation_id = fields.Many2one(
+        "pms.reservation", compute="_compute_pms_reservation_id", store=True
+    )
+    pms_property_id = fields.Many2one(
+        "pms.property", compute="_compute_pms_reservation_id", store=True
+    )
+
+    @api.depends("order_line")
+    def _compute_pms_reservation_id(self):
+        for sale in self:
+            reservation_line = sale.order_line.filtered(lambda s: s.reservation_ok)
+            sale.pms_reservation_id = reservation_line.pms_reservation_id.id
+            sale.pms_property_id = reservation_line.pms_reservation_id.property_id.id
 
     @api.model
     def create(self, values):
