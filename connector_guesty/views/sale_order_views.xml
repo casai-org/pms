@@ -8,12 +8,23 @@
             <xpath expr="//button[@name='action_confirm'][1]" position="attributes">
                 <attribute
                     name="confirm"
-                >Are you sure you wish to confirm without payment?</attribute>
+                >Are you sure you wish to confirm without payment?
+                </attribute>
             </xpath>
             <xpath expr="//button[@name='action_confirm'][2]" position="attributes">
                 <attribute
                     name="confirm"
-                >Are you sure you wish to confirm without payment?</attribute>
+                >Are you sure you wish to confirm without payment?
+                </attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_confirm'][1]" position="after">
+                <button
+                    name="action_reserve"
+                    string="Reserve Dates"
+                    type="object"
+                    states="draft,approved,sent"
+                    class="btn btn-warning"
+                />
             </xpath>
         </field>
     </record>

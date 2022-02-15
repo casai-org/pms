@@ -3,7 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from odoo import api, models
+from odoo import _, api, models
+from odoo.exceptions import UserError
 
 _log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class SaleOrder(models.Model):
                 reservation = self.env["pms.reservation"].search(
                     [("sale_order_id", "=", sale.id)]
                 )
+
                 if reservation and reservation.guesty_id:
                     reservation.with_delay().guesty_push_reservation_update()
         return res
@@ -71,3 +73,19 @@ class SaleOrder(models.Model):
         )
 
         return _reservation
+
+    def action_reserve(self):
+        reservation = self.sale_get_active_reservation()
+        if (
+            reservation.stage_id.id
+            == self.env.company.guesty_backend_id.stage_inquiry_id.id
+        ):
+            reservation.action_book()
+            self.message_post(body=_("Reservation successfully reserved"))
+        elif (
+            reservation.stage_id.id
+            == self.env.company.guesty_backend_id.stage_reserved_id.id
+        ):
+            raise UserError(_("Reservation is already reserved"))
+        else:
+            raise UserError(_("Unable to reserve"))
