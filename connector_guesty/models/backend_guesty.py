@@ -10,6 +10,9 @@ import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .guesty_sdk import API
+from .guesty_sdk.models import Account
+
 _log = logging.getLogger(__name__)
 
 _tzs = [
@@ -95,31 +98,34 @@ class BackendGuesty(models.Model):
         self.env.company.guesty_backend_id = self.id
 
     def check_credentials(self):
-        # url to validate the credentials
-        # this endpoint will search a list of users, it may be empty if the api key
-        # does not have permissions to list the users, but it should be a 200 response
-        # Note: Guesty does not provide a way to validate credentials
-        success, result = self.call_get_request("accounts/me", limit=1)
-        if success:
-            _id = result.get("_id")
-            _tz = result.get("timezone")
-            _currency = result.get("currency")
-
-            currency = self.env["res.currency"].search(
-                [("name", "=", _currency)], limit=1
-            )
-            payload = {
-                "guesty_account_id": _id,
-                "active": True,
-                "currency_id": currency.id,
-            }
-
-            if _tz:
-                payload["timezone"] = _tz
-
-            self.write(payload)
-        else:
+        _api = self.guesty_get_api()
+        success, account_info = _api.get(Account).get_account_info()
+        if not success:
             raise UserError(_("Connection Test Failed!"))
+
+        _id = account_info.get("_id")
+        _tz = account_info.get("timezone")
+        _currency = account_info.get("currency")
+
+        payload = {"guesty_account_id": _id, "active": True}
+        currency = self.env["res.currency"].search([("name", "=", _currency)], limit=1)
+        if currency.exists():
+            payload.update(
+                {
+                    "currency_id": currency.id,
+                }
+            )
+        if _tz:
+            payload["timezone"] = _tz
+
+        self.write(payload)
+
+    def guesty_get_api(self):
+        return API(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            sandbox=self.guesty_environment == "dev",
+        )
 
     def reset_credentials(self):
         if self.env.company.guesty_backend_id.id == self.id:

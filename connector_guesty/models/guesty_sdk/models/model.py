@@ -84,7 +84,17 @@ class Model(object):
     def search_by_id(self, uuid):
         _get_url = "{}/{}/{}".format(self._api.api_url, self._name, uuid)
         req = requests.get(url=_get_url, auth=(self._api.api_key, self._api.api_secret))
-        return self._parse_request_result(req)
+        success, res = self._parse_request_result(req)
+        result = None
+        if success and isinstance(res, list):
+            if len(res) > 0:
+                result = res[0]
+            else:
+                result = None
+        elif success:
+            result = res
+
+        return success, result
 
     def _parse_request_result(self, req):
         _success = req.status_code == 200
