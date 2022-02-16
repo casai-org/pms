@@ -249,22 +249,27 @@ class PmsReservation(models.Model):
                     raise ValidationError(
                         _("Invalid dates {} - {}".format(self.start, self.stop))
                     )
-                raise UserError(_("Unable to send to guesty"))
+                raise UserError(_("Unable to send to guesty") + ": " + str(res))
 
             guesty_id = res.get("_id")
             self.with_context(ignore_guesty_push=True).write({"guesty_id": guesty_id})
         else:
             # retrieve calendars
+            # todo: Fix Calendar
             success, calendars = backend.call_get_request(
-                url_path="listings/{}/calendar".format(self.property_id.guesty_id),
+                url_path="availability-pricing/api/calendar/listings/{}".format(
+                    self.property_id.guesty_id
+                ),
+                paginate=False,
                 params={
-                    "from": self.start.strftime("%Y-%m-%d"),
-                    "to": self.stop.strftime("%Y-%m-%d"),
+                    "startDate": self.start.strftime("%Y-%m-%d"),
+                    "endDate": self.stop.strftime("%Y-%m-%d"),
                 },
             )
 
             if success:
-                for calendar in calendars:
+                calendar_data = calendars.get("data", {}).get("days", [])
+                for calendar in calendar_data:
                     if calendar.get("status") != "available":
                         raise ValidationError(
                             _("Date {}, are not available to be blocked").format(
@@ -278,6 +283,7 @@ class PmsReservation(models.Model):
                 # DEV - PRE - EVC  No live
                 # OPS - ROM - UNV exit unit
                 block_title = "Blocked By: {}".format(self.partner_id.name)
+                # todo: Fix Calendar Push
                 backend.call_put_request(
                     url_path="listings/calendars",
                     body={
