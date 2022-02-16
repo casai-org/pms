@@ -10,9 +10,17 @@
                     <label for="guesty_ids" />
                     <field name="guesty_ids">
                         <tree>
-                            <field name="partner_id" />
                             <field name="guesty_id" />
+                            <field name="guesty_account_id" />
                         </tree>
+                        <form>
+                            <group>
+                                <group>
+                                    <field name="guesty_id" />
+                                    <field name="guesty_account_id" />
+                                </group>
+                            </group>
+                        </form>
                     </field>
                 </page>
             </xpath>

@@ -9,3 +9,4 @@ class ResPartnerGuesty(models.Model):
 
     partner_id = fields.Many2one("res.partner", required=True, ondelete="cascade")
     guesty_id = fields.Char(required=True)
+    guesty_account_id = fields.Char()

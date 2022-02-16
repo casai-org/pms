@@ -135,7 +135,11 @@ class BackendGuesty(models.Model):
 
     def guesty_search_create_customer(self, partner):
         guesty_partner = self.env["res.partner.guesty"].search(
-            [("partner_id", "=", partner.id)], limit=1
+            [
+                ("partner_id", "=", partner.id),
+                ("guesty_account_id", "=", self.guesty_account_id),
+            ],
+            limit=1,
         )
         if not guesty_partner:
             # create on guesty
@@ -151,7 +155,11 @@ class BackendGuesty(models.Model):
 
             guesty_id = res.get("_id")
             customer = self.env["res.partner.guesty"].create(
-                {"partner_id": partner.id, "guesty_id": guesty_id}
+                {
+                    "partner_id": partner.id,
+                    "guesty_id": guesty_id,
+                    "guesty_account_id": self.guesty_account_id,
+                }
             )
 
             return customer
