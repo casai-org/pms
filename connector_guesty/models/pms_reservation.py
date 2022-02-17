@@ -35,7 +35,7 @@ class PmsReservation(models.Model):
             _reservation = _sale.sale_get_active_reservation()
             if (
                 _reservation
-                and _reservation.stage_id != self.env.company.stage_inquiry_id.id
+                and _reservation.stage_id.id != self.env.company.stage_inquiry_id.id
             ):
                 _sale.action_cancel()
                 _sale.message_post(body=_("Canceled by expired date"))

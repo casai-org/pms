@@ -14,7 +14,7 @@
 
     <record id="cron_download_calendars_info" model="ir.cron">
         <field name="name">Guesty: Download Calendars</field>
-        <field name="model_id" ref="pms_sale.model_pms_backend_guesty" />
+        <field name="model_id" ref="connector_guesty.model_backend_guesty" />
         <field name="state">code</field>
         <field name="code">model._cron_download_calendars_info()</field>
         <field name="user_id" ref="base.user_root" />
