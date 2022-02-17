@@ -32,6 +32,35 @@ class Model(object):
         if not self._name:
             self._name = self.__class__.__name__.lower()
 
+    def create(self, payload=None, post_url=None):
+        super().create()
+        if not payload:
+            return None
+
+        _post_url = post_url or "{}/{}".format(self._api.api_url, self._name)
+        result = requests.post(
+            url=_post_url, json=payload, auth=(self._api.api_key, self._api.api_secret)
+        )
+
+        if result.status_code not in [200, 201]:
+            return False, result.content
+
+        return True, result.json()
+
+    def delete(self, uuid=None, post_url=None):
+        if not uuid:
+            return False
+
+        _post_url = post_url or "{}/{}/{}".format(self._api.api_url, self._name, uuid)
+        result = requests.delete(
+            url=_post_url, auth=(self._api.api_key, self._api.api_secret)
+        )
+        _log.info("API: {}".format(result.status_code))
+        if result.status_code not in [204]:
+            return False, result.content
+
+        return True, None
+
     def with_filter(self, domain):
         if not domain:
             domain = []

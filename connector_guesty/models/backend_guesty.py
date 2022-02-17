@@ -70,6 +70,8 @@ class BackendGuesty(models.Model):
 
     cancel_expired_quotes = fields.Boolean(default=False)
 
+    webhook_ids = fields.One2many("backend.guesty.webhook", "backend_id")
+
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
         # noinspection PyTypeChecker
@@ -311,11 +313,20 @@ class BackendGuesty(models.Model):
         if reservation_last_date:
             self.reservation_pull_start_date = reservation_last_date
 
+    def _cron_download_calendars_info(self):
+        backend_ids = self.search([])
+        for backend in backend_ids:
+            backend.download_calendars()
+
     def download_calendars(self):
+        self.env["pms.guesty.calendar"].sudo().search([]).unlink()
         properties = self.env["pms.property"].search([("guesty_id", "!=", False)])
         for property_id in properties:
             self.env["pms.guesty.calendar"].with_delay().guesty_pull_calendar(
-                self, property_id, "2021-12-01", "2022-12-31"
+                self,
+                property_id,
+                datetime.datetime.now().strftime("%Y-%m-%d"),
+                "2022-12-31",
             )
 
     def call_get_request(

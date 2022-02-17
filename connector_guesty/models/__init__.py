@@ -1,5 +1,6 @@
 from . import (
     backend_guesty,
+    guesty_webhook,
     pms_property,
     pms_reservation,
     pms_property_reservation,
