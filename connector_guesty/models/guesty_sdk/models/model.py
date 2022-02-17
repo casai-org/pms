@@ -32,8 +32,7 @@ class Model(object):
         if not self._name:
             self._name = self.__class__.__name__.lower()
 
-    def create(self, payload=None, post_url=None):
-        super().create()
+    def create(self, payload=None, post_url=None):  # pylint: disable=W8106
         if not payload:
             return None
 
