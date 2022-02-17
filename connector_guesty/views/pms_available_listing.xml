@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="pms_available_listing_tree_view" model="ir.ui.view">
+        <field name="name">pms.available.listing.tree</field>
+        <field name="model">pms.available.listing</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="property_id" />
+                <field name="city" />
+                <field
+                    name="tag_ids"
+                    widget="many2many_tags"
+                    options="{'color_field': 'color'}"
+                />
+                <field name="no_nights" />
+                <field name="check_in" />
+                <field name="check_out" />
+                <field name="price" widget="monetary" />
+                <field name="amount_total" widget="monetary" />
+                <field name="currency_id" />
+            </tree>
+        </field>
+    </record>
+</odoo>

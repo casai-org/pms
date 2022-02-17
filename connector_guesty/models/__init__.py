@@ -12,6 +12,7 @@ from . import (
     res_partner,
     sale_order,
     sale_order_line,
+    sale_order_multi_wizard,
     payment_transaction,
     crm_lead,
     crm_lead_rule,

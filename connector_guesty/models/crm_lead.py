@@ -1,5 +1,6 @@
 # Copyright (C) 2021 Casai (https://www.casai.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+import datetime
 import logging
 import re
 import uuid
@@ -82,13 +83,14 @@ class CrmLead(models.Model):
             self.env["pms.property"].sudo().search([("guesty_id", "in", listing_ids)])
         )
 
-        _log.info(property_list)
-
         backend = self.env.company.guesty_backend_id
+        real_checkout = self.check_out - datetime.timedelta(days=1)
+
         calendar = backend.guesty_get_calendar_info(
-            self.check_in, self.check_out, property_list
+            self.check_in, real_checkout, property_list
         )
-        _log.info(calendar)
+
+        # _log.info()
 
         self.pms_available_listing_ids.sudo().unlink()
         self.sudo().pms_available_listing_ids = [
@@ -99,7 +101,21 @@ class CrmLead(models.Model):
                     "property_id": a.id,
                     "currency": calendar[a.guesty_id]["currency"],
                     "price": calendar[a.guesty_id]["price"],
+                    "no_nights": calendar[a.guesty_id]["no_nights"],
+                    "check_in": self.check_in,
+                    "check_out": self.check_out,
                 },
             )
             for a in property_list
         ]
+
+        return {
+            "type": "ir.actions.act_window",
+            "name": _(
+                "Quoting reservation: ({} - {})".format(self.check_in, self.check_out)
+            ),
+            "res_model": "pms.available.listing",
+            "domain": [["id", "in", self.pms_available_listing_ids.ids]],
+            "views": [[False, "tree"]],
+            # "target": "new"
+        }
