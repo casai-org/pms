@@ -6,10 +6,7 @@
         <field name="model">crm.lead</field>
         <field name="arch" type="xml">
             <xpath expr="//notebook/page[1]" position="before">
-                <page
-                    string="Reservation"
-                    attrs="{'invisible': [('type', '!=', 'opportunity')]}"
-                >
+                <page string="Reservation">
                     <group>
                         <group>
                             <field name="check_in" required="1" />
