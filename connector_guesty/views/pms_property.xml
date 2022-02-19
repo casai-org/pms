@@ -16,6 +16,7 @@
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <page string="Guesty Technical Info">
+                    <field name="listing_ids" />
                     <group>
                         <group>
                             <field name="guesty_id" string="Guesty ID" readonly="1" />

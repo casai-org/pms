@@ -9,6 +9,7 @@ class Listing(Model):
     _name = "listings"
 
     _fields = {
+        "accountId": Field("accountId"),
         "nickname": Field("nickname"),
         "title": Field("title"),
         "roomType": Field("roomType"),

@@ -14,6 +14,7 @@ _log = logging.getLogger(__name__)
 class PmsReservation(models.Model):
     _inherit = "pms.reservation"
 
+    listing_id = fields.Many2one("backend.guesty.listing")
     guesty_id = fields.Char()
 
     def _cancel_expired_cron(self):
@@ -51,15 +52,11 @@ class PmsReservation(models.Model):
     @api.model
     def create(self, values):
         res = super(PmsReservation, self).create(values)
-        if self.env.company.guesty_backend_id and not res.property_id.guesty_id:
-            raise ValidationError(_("The property is not linked to Guesty."))
+        # Get Backend
+        backend = res.guesty_get_backend()
 
         # Set the automated workflow to create and validate the invoice
-        if (
-            self.env.company.guesty_backend_id
-            and res.sale_order_id
-            and not res.sale_order_id.workflow_process_id
-        ):
+        if backend and res.sale_order_id and not res.sale_order_id.workflow_process_id:
             res.sale_order_id.with_context({"ignore_guesty_push": True}).write(
                 {
                     "workflow_process_id": self.env.ref(
@@ -67,10 +64,10 @@ class PmsReservation(models.Model):
                     ).id
                 }
             )
-        if self.env.company.guesty_backend_id and not self.env.context.get(
-            "ignore_guesty_push", False
-        ):
+
+        if backend and not self.env.context.get("ignore_guesty_push", False):
             res.with_delay().guesty_push_reservation()
+
         return res
 
     def write(self, values):
@@ -144,7 +141,8 @@ class PmsReservation(models.Model):
         return True
 
     def guesty_get_status(self):
-        backend = self.env.company.guesty_backend_id
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
         success, result = backend.call_get_request(
             url_path="reservations/{}".format(self.guesty_id),
             params={"fields": ", ".join(["status"])},
@@ -160,7 +158,8 @@ class PmsReservation(models.Model):
             "status": "canceled",
             "canceledBy": self.env.user.name,
         }
-        backend = self.env.company.guesty_backend_id
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
         success, result = backend.call_put_request(
             url_path="reservations/{}".format(self.guesty_id), body=body
         )
@@ -172,7 +171,9 @@ class PmsReservation(models.Model):
         self.message_post(body=_("Reservation cancelled successfully on guesty!"))
 
     def guesty_push_reservation_reserve(self):
-        backend = self.env.company.guesty_backend_id
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
+
         body = self.parse_push_reservation_data(backend)
         body["status"] = "reserved"
 
@@ -187,7 +188,9 @@ class PmsReservation(models.Model):
         self.message_post(body=_("Reservation reserved successfully on guesty!"))
 
     def guesty_push_reservation_confirm(self):
-        backend = self.env.company.guesty_backend_id
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
+
         body = self.parse_push_reservation_data(backend)
         body["status"] = "confirmed"
 
@@ -201,9 +204,8 @@ class PmsReservation(models.Model):
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
 
     def guesty_push_reservation_update(self):
-        backend = self.env.company.guesty_backend_id
-        if not backend:
-            raise ValidationError(_("No backend defined"))
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
 
         body = self.parse_push_reservation_data(backend)
         success, res = backend.call_put_request(
@@ -213,7 +215,9 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to send to guesty") + str(res))
 
     def guesty_push_payment(self):
-        backend = self.env.company.guesty_backend_id
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
+
         # give 5 minutes of overdue
         paid_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
         payload = {
@@ -234,9 +238,8 @@ class PmsReservation(models.Model):
             _log.error(result)
 
     def guesty_push_reservation(self):
-        backend = self.env.company.guesty_backend_id
-        if not backend:
-            raise ValidationError(_("No backend defined"))
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
 
         if self.sale_order_id:
             # create a reservation on guesty
@@ -315,9 +318,10 @@ class PmsReservation(models.Model):
         invoice_lines = payload.get("money", {}).get("invoiceItems")
         no_nights = payload.get("nightsCount", 0)
         status = payload.get("status", "inquiry")
+        sale_ref = payload.get("confirmationCode")
 
         reservation_id.with_context(context).with_delay().build_so(
-            invoice_lines, no_nights, status, backend
+            invoice_lines, no_nights, status, backend, sale_ref=sale_ref
         )
 
         return reservation_id
@@ -330,7 +334,7 @@ class PmsReservation(models.Model):
         guest_id = reservation.get("guestId")
 
         property_id = self.env["pms.property"].search(
-            [("guesty_id", "=", listing_id)], limit=1
+            [("listing_ids.external_id", "=", listing_id)], limit=1
         )
 
         if not property_id.exists():
@@ -349,9 +353,12 @@ class PmsReservation(models.Model):
             "start": check_in_time,
             "stop": check_out_time,
             "partner_id": pms_guest.partner_id.id,
+            "company_id": backend.sudo().company_id.id,
         }
 
     def parse_push_reservation_data(self, backend):
+        listing_id = self.guesty_get_listing(raise_if_not_found=True)
+
         guesty_listing_price = self.property_id.reservation_ids.filtered(
             lambda s: s.is_guesty_price
         )
@@ -366,7 +373,7 @@ class PmsReservation(models.Model):
         guesty_currency = guesty_listing_price.currency_id or backend.currency_id
 
         body = {
-            "listingId": self.property_id.guesty_id,
+            "listingId": listing_id.external_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
             "guestId": customer.guesty_id,
@@ -460,7 +467,7 @@ class PmsReservation(models.Model):
 
         return body
 
-    def build_so(self, guesty_invoice_items, no_nights, status, backend):
+    def build_so(self, guesty_invoice_items, no_nights, status, backend, sale_ref=None):
         # Create SO based on reservation
         # When the reservation was created out of odoo
         if guesty_invoice_items is None:
@@ -505,6 +512,8 @@ class PmsReservation(models.Model):
                         {
                             "partner_id": self.partner_id.id,
                             "pricelist_id": price_list.id,
+                            "client_order_ref": sale_ref,
+                            "company_id": backend.company_id.id,
                         }
                     )
                 )
@@ -544,6 +553,9 @@ class PmsReservation(models.Model):
                 self.with_context(context).action_cancel()
 
     def build_lines(self, invoice_lines, so, no_nights, currency_id):
+        # Get Backend
+        backend = self.guesty_get_backend(raise_if_nof_found=True)
+
         # know if we have the accommodation line in the order
 
         # lines to preserve after the update
@@ -609,7 +621,8 @@ class PmsReservation(models.Model):
                 order_lines.append((0, False, line_payload))
 
         # remove the lines are not the accommodation one
-        backend = self.env.company.guesty_backend_id
+        # backend = self.env.company.guesty_backend_id
+
         for item in invoice_lines:
             if (
                 item.get("type", str()) == "MANUAL"
@@ -709,3 +722,23 @@ class PmsReservation(models.Model):
             return {"type": "ir.actions.act_url", "url": url, "target": "new"}
         else:
             raise UserError(_("Unable to load external url"))
+
+    def guesty_get_backend(self, raise_if_nof_found=False):
+        backend = self.env["backend.guesty"].search(
+            [("listing_ids.id", "in", self.property_id.listing_ids.ids)], limit=1
+        )
+
+        if not backend and raise_if_nof_found:
+            raise ValidationError(_("Backend not found"))
+
+        return backend
+
+    def guesty_get_listing(self, raise_if_not_found=False):
+        listing_id = self.listing_id or self.env["backend.guesty.listing"].search(
+            [("id", "in", self.property_id.listing_ids.ids)], limit=1
+        )
+
+        if not listing_id and raise_if_not_found:
+            raise ValidationError(_("Listing not found"))
+
+        return listing_id

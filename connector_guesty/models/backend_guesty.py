@@ -11,7 +11,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .guesty_sdk import API
-from .guesty_sdk.models import Account
+from .guesty_sdk.models import Account, Listing
 
 _log = logging.getLogger(__name__)
 
@@ -71,6 +71,10 @@ class BackendGuesty(models.Model):
     cancel_expired_quotes = fields.Boolean(default=False)
 
     webhook_ids = fields.One2many("backend.guesty.webhook", "backend_id")
+
+    listing_ids = fields.Many2many("backend.guesty.listing")
+
+    company_id = fields.Many2one("res.company", default=lambda s: s.env.company.id)
 
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
@@ -135,6 +139,10 @@ class BackendGuesty(models.Model):
 
         self.write({"active": False, "is_default": False})
 
+    def action_guesty_search_create_customer(self):
+        partner_id = self.env["res.partner"].browse(19)
+        self.guesty_search_create_customer(partner_id)
+
     def guesty_search_create_customer(self, partner):
         guesty_partner = self.env["res.partner.guesty"].search(
             [
@@ -143,27 +151,53 @@ class BackendGuesty(models.Model):
             ],
             limit=1,
         )
+
         if not guesty_partner:
-            # create on guesty
-            body = {
-                "fullName": partner.name,
-                "email": partner.email,
-                "phone": partner.phone,
-            }
-            success, res = self.call_post_request(url_path="guests", body=body)
-
-            if not success:
-                raise UserError(_("Unable to create customer"))
-
-            guesty_id = res.get("_id")
-            customer = self.env["res.partner.guesty"].create(
-                {
-                    "partner_id": partner.id,
-                    "guesty_id": guesty_id,
-                    "guesty_account_id": self.guesty_account_id,
-                }
+            # search in guesty by email
+            guest_info = None
+            success, _search = self.call_get_request(
+                url_path="guests", params={"q": partner.email}, limit=1
             )
+            if success:
+                _results = _search.get("results")
+                if len(_results) > 0:
+                    _guest_info = _results[0]
+                    if _guest_info.get(
+                        "email"
+                    ) == partner.email or partner.email in _guest_info.get("emails"):
+                        guest_info = _guest_info
 
+            # If a guest was found, we attach to the partner
+            if guest_info:
+                customer = self.env["res.partner.guesty"].create(
+                    {
+                        "partner_id": partner.id,
+                        "guesty_id": guest_info["_id"],
+                        "guesty_account_id": self.guesty_account_id,
+                    }
+                )
+            else:
+                # create on guesty
+                body = {
+                    "fullName": partner.name,
+                    "email": partner.email,
+                    "phone": partner.phone,
+                }
+                success, res = self.call_post_request(url_path="guests", body=body)
+
+                if not success:
+                    raise UserError(_("Unable to create customer"))
+
+                guesty_id = res.get("_id")
+                customer = self.env["res.partner.guesty"].create(
+                    {
+                        "partner_id": partner.id,
+                        "guesty_id": guesty_id,
+                        "guesty_account_id": self.guesty_account_id,
+                    }
+                )
+
+            # Return the customer relation
             return customer
         else:
             return guesty_partner
@@ -342,6 +376,7 @@ class BackendGuesty(models.Model):
             params.update({"skip": str(skip), "limit": str(limit)})
 
         url = "{}/{}".format(self.api_url, url_path)
+        _log.warning(url)
         try:
             result = requests.get(
                 url=url, params=params, auth=(self.api_key, self.api_secret)
@@ -437,3 +472,20 @@ class BackendGuesty(models.Model):
                 result[listing_id] = {"currency": currency, "price": avg_price}
 
         return result
+
+    def download_listings(self):
+        _api = self.guesty_get_api()
+        listings = _api.get(Listing).search()
+        for listing_info in listings:
+            self.with_delay().action_download_listing(listing_info)
+
+    def action_download_listing(self, listing_info):
+        # _log.info(listing_info)
+        self.env["backend.guesty.listing"].sudo().create(
+            {
+                "name": listing_info["title"],
+                "nickname": listing_info["nickname"],
+                "guesty_account": listing_info["accountId"],
+                "external_id": listing_info["_id"],
+            }
+        )

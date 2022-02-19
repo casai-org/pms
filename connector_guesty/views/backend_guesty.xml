@@ -54,6 +54,9 @@
                             />
                             <field name="is_default" readonly="1" />
                         </group>
+                        <group>
+                            <field name="company_id" />
+                        </group>
                     </group>
                     <notebook attrs="{'invisible': [('active', '=', False)]}">
                         <page string="Account Information">
@@ -88,6 +91,16 @@
                             <button
                                 name="download_properties"
                                 string="Sync Property"
+                                type="object"
+                            />
+                            <button
+                                name="download_listings"
+                                string="Download Listings"
+                                type="object"
+                            />
+                            <button
+                                name="action_guesty_search_create_customer"
+                                string="Test partner"
                                 type="object"
                             />
                         </page>
@@ -149,6 +162,18 @@
                                         </group>
                                     </group>
                                 </form>
+                            </field>
+                        </page>
+                        <page string="Tracked Listings">
+                            <field
+                                name="listing_ids"
+                                domain="[('guesty_account', '=', guesty_account_id)]"
+                            >
+                                <tree>
+                                    <field name="nickname" />
+                                    <field name="name" />
+                                    <field name="external_id" />
+                                </tree>
                             </field>
                         </page>
                     </notebook>

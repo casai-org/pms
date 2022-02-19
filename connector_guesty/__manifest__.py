@@ -14,6 +14,7 @@
     ],
     "data": [
         "views/backend_guesty.xml",
+        "views/backend_guesty_listing.xml",
         "views/pms_property.xml",
         "views/pms_property_reservation.xml",
         "views/pms_reservation.xml",

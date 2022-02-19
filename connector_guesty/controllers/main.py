@@ -30,11 +30,39 @@ class GuestyController(http.Controller):
         type="json",
     )
     def reservations_webhook(self, **data):
-        company, backend = self.validate_get_company(data)
+        # company, backend = self.validate_get_company(data)
         event = data.get("event")
         reservation = event.get("reservation")
         if not reservation:
             raise ValidationError(_("Reservation data not found!"))
+
+        guesty_account = reservation.get("accountId")
+        listing_id = reservation.get("listingId")
+
+        # what is the related backend?
+        listing = (
+            request.env["backend.guesty.listing"]
+            .sudo()
+            .search(
+                [
+                    ("external_id", "=", listing_id),
+                    ("guesty_account", "=", guesty_account),
+                ],
+                limit=1,
+            )
+        )
+
+        if not listing:
+            raise ValidationError(_("Listing not found"))
+
+        backend = (
+            request.env["backend.guesty"]
+            .sudo()
+            .search([("listing_ids.id", "=", listing.id)])
+        )
+
+        if not backend.exists():
+            raise ValidationError(_("No backend defined"))
 
         success, res = backend.sudo().call_get_request(
             url_path="reservations/{}".format(reservation.get("_id")),
@@ -50,6 +78,7 @@ class GuestyController(http.Controller):
                         "lastUpdatedAt",
                         "money",
                         "nightsCount",
+                        "confirmationCode",
                     ]
                 )
             },
