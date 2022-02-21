@@ -58,7 +58,7 @@ class GuestyController(http.Controller):
         backend = (
             request.env["backend.guesty"]
             .sudo()
-            .search([("listing_ids.id", "=", listing.id)])
+            .search([("listing_ids.id", "=", listing.id)], limit=1)
         )
 
         if not backend.exists():
