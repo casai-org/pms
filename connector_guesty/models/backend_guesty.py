@@ -76,6 +76,10 @@ class BackendGuesty(models.Model):
 
     company_id = fields.Many2one("res.company", default=lambda s: s.env.company.id)
 
+    listing_property_ids = fields.One2many(
+        "backend.guesty.listing.property", "backend_id"
+    )
+
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
         # noinspection PyTypeChecker
@@ -202,28 +206,56 @@ class BackendGuesty(models.Model):
         else:
             return guesty_partner
 
-    def guesty_search_pull_customer(self, guesty_id):
+    def guesty_search_pull_customer(
+        self, guesty_id=None, raise_if_not_found=True, backend=None
+    ):
         """
         Method to search a guesty customer into odoo
         Docs: https://docs.guesty.com/#retrieve-a-guest
         :param str guesty_id: Guesty customer ID
-        :return models.Model(res.partner.guesty):
+        :param bool raise_if_not_found: Flag
+        :param models.Model(backend.guesty) backend: Backend Ref.
+        return models.Model(res.partner.guesty):
         """
         # search for a guesty customer in the odoo database into the res.partner.guesty
         # model if we don't found them, we request to get the customer data from guesty
         # and store it into odoo
         if guesty_id is None:
-            return
+            if raise_if_not_found:
+                raise ValidationError(_("Partner not found"))
+            else:
+                return None
 
         guesty_partner = self.env["res.partner.guesty"].search(
-            [("guesty_id", "=", guesty_id)], limit=1
+            [
+                ("guesty_id", "=", guesty_id),
+                ("guesty_account_id", "=", backend.guesty_account_id),
+            ],
+            limit=1,
         )
+
         if not guesty_partner:
             # get data from guesty
             success, res = self.call_get_request(url_path="guests/{}".format(guesty_id))
 
             if not success:
                 raise UserError(_("Failed to get customer data from guesty"))
+
+            # search by email, if is found, we made the link
+            email = res.get("email")
+            partner_id = self.env["res.partner"].search_by_email(email)
+            if partner_id:
+                customer_name = res.get("fullName")
+                customer = self.env["res.partner.guesty"].create(
+                    {
+                        "partner_id": partner_id.id,
+                        "guesty_id": guesty_id,
+                        "guesty_account_id": backend.guesty_account_id,
+                        "guesty_name": customer_name,
+                    }
+                )
+                return customer
+            # >> Search by Email
 
             customer_name = res.get("fullName")
             if not customer_name:
@@ -489,3 +521,10 @@ class BackendGuesty(models.Model):
                 "external_id": listing_info["_id"],
             }
         )
+
+    def search_guest_by_id(self, uuid=None):
+        guest_partner = self.env["res.partner.guesty"].search(
+            [("guesty_id", "=", uuid), ("guesty_account_id", "=", self.id)], limit=1
+        )
+
+        return guest_partner

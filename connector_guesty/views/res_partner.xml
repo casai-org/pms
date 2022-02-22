@@ -5,23 +5,43 @@
         <field name="inherit_id" ref="base.view_partner_form" />
         <field name="priority">20</field>
         <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    class="oe_stat_button"
+                    type="object"
+                    name="open_guesty_url"
+                    icon="fa-globe"
+                    string="Guesty"
+                />
+            </xpath>
             <xpath expr="//page[@name='internal_notes']" position="before">
                 <page string="Guesty">
-                    <label for="guesty_ids" />
                     <field name="guesty_ids">
                         <tree>
-                            <field name="guesty_id" />
-                            <field name="guesty_account_id" />
+                            <field name="guesty_name" string="Guest Name" />
+                            <field name="guesty_id" string="Guesty Account" />
+                            <field
+                                name="guesty_account_id"
+                                string="Guesty Main Account"
+                            />
+                            <field name="is_guesty_default" string="Is Default" />
                         </tree>
                         <form>
                             <group>
                                 <group>
                                     <field name="guesty_id" />
                                     <field name="guesty_account_id" />
+                                    <field name="is_guesty_default" />
                                 </group>
                             </group>
                         </form>
                     </field>
+                    <div class="oe_clear" />
+                    <button
+                        string="Sync Accounts"
+                        type="object"
+                        name="sync_guesty_accounts"
+                    />
                 </page>
             </xpath>
         </field>

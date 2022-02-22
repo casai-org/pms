@@ -12,10 +12,13 @@ _log = logging.getLogger(__name__)
 
 
 class PmsReservation(models.Model):
-    _inherit = "pms.reservation"
+    _name = "pms.reservation"
+    _inherit = ["pms.reservation", "mail.thread", "mail.activity.mixin"]
 
     listing_id = fields.Many2one("backend.guesty.listing")
-    guesty_id = fields.Char()
+    guesty_id = fields.Char(string="Guesty ID", tracking=True)
+    guesty_guest_id = fields.Char("Guesty Guest", tracking=True)
+    guesty_account_id = fields.Char()
 
     def _cancel_expired_cron(self):
         if not self.env.company.guesty_backend_id.cancel_expired_quotes:
@@ -66,8 +69,7 @@ class PmsReservation(models.Model):
             )
 
         if backend and not self.env.context.get("ignore_guesty_push", False):
-            res.with_delay().guesty_push_reservation()
-
+            res.guesty_push_reservation()
         return res
 
     def write(self, values):
@@ -254,8 +256,15 @@ class PmsReservation(models.Model):
                     )
                 raise UserError(_("Unable to send to guesty") + ": " + str(res))
 
-            guesty_id = res.get("_id")
-            self.with_context(ignore_guesty_push=True).write({"guesty_id": guesty_id})
+            guesty_id = res["_id"]
+            guest_id = res["guestId"]
+            self.with_context(ignore_guesty_push=True).write(
+                {
+                    "guesty_id": guesty_id,
+                    "guesty_account_id": backend.guesty_account_id,
+                    "guesty_guest_id": guest_id,
+                }
+            )
         else:
             # retrieve calendars
             # todo: Fix Calendar
@@ -327,20 +336,27 @@ class PmsReservation(models.Model):
         return reservation_id
 
     def guesty_parse_reservation(self, reservation, backend):
-        guesty_id = reservation.get("_id")
-        listing_id = reservation.get("listingId")
-        check_in = reservation.get("checkIn")
-        check_out = reservation.get("checkOut")
-        guest_id = reservation.get("guestId")
+        guesty_id = reservation["_id"]
+        listing_id = reservation["listingId"]
+        check_in = reservation["checkIn"]
+        check_out = reservation["checkOut"]
+        guest_id = reservation["guestId"]
+        guesty_account_id = reservation["accountId"]
 
-        property_id = self.env["pms.property"].search(
-            [("listing_ids.external_id", "=", listing_id)], limit=1
+        if backend.guesty_account_id != guesty_account_id:
+            raise ValidationError(_("Listing and backend have different account"))
+
+        listing_property = backend.listing_property_ids.filtered(
+            lambda s: s.listing_id.external_id == listing_id
         )
-
-        if not property_id.exists():
+        if not listing_property.exists():
             raise ValidationError(_("Listing: {} does not exist".format(listing_id)))
 
-        pms_guest = backend.sudo().guesty_search_pull_customer(guest_id)
+        property_id = listing_property.property_id
+
+        pms_guest = backend.sudo().guesty_search_pull_customer(
+            guesty_id=guest_id, raise_if_not_found=True, backend=backend
+        )
 
         check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
         check_out_time = datetime.datetime.strptime(
@@ -349,6 +365,8 @@ class PmsReservation(models.Model):
 
         return guesty_id, {
             "guesty_id": guesty_id,
+            "guesty_account_id": backend.guesty_account_id,
+            "guesty_guest_id": guest_id,
             "property_id": property_id.id,
             "start": check_in_time,
             "stop": check_out_time,
@@ -363,7 +381,19 @@ class PmsReservation(models.Model):
             lambda s: s.is_guesty_price
         )
 
-        customer = backend.guesty_search_create_customer(self.partner_id)
+        partner_guest = self.partner_id.guesty_ids.filtered(
+            lambda s: s.guesty_account_id == backend.guesty_account_id
+        )
+
+        if partner_guest:
+            partner_guest = self.env["res.partner.guesty"].search(
+                [("id", "in", partner_guest.ids)], limit=1
+            )
+
+        if not partner_guest:
+            partner_guest = self.partner_id.guesty_push_guest(
+                backend=backend, search_by_email=True
+            )
 
         utc = pytz.UTC
         tz = pytz.timezone(self.property_id.tz or backend.timezone)
@@ -376,7 +406,7 @@ class PmsReservation(models.Model):
             "listingId": listing_id.external_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
-            "guestId": customer.guesty_id,
+            "guestId": partner_guest.guesty_id,
             "money": {"invoiceItems": []},
         }
 
@@ -472,7 +502,7 @@ class PmsReservation(models.Model):
         # When the reservation was created out of odoo
         if guesty_invoice_items is None:
             _log.error("Unable to create SO without guesty data")
-            return
+            return _("Empty invoice items")
 
         if not backend:
             raise ValidationError(_("No Backend defined"))
@@ -725,7 +755,7 @@ class PmsReservation(models.Model):
 
     def guesty_get_backend(self, raise_if_nof_found=False):
         backend = self.env["backend.guesty"].search(
-            [("listing_ids.id", "in", self.property_id.listing_ids.ids)], limit=1
+            [("listing_property_ids.property_id.id", "=", self.property_id.id)], limit=1
         )
 
         if not backend and raise_if_nof_found:
@@ -734,11 +764,11 @@ class PmsReservation(models.Model):
         return backend
 
     def guesty_get_listing(self, raise_if_not_found=False):
-        listing_id = self.listing_id or self.env["backend.guesty.listing"].search(
-            [("id", "in", self.property_id.listing_ids.ids)], limit=1
+        property_listing = self.env["backend.guesty.listing.property"].search(
+            [("property_id", "=", self.property_id.id)], limit=1
         )
 
-        if not listing_id and raise_if_not_found:
+        if not property_listing and raise_if_not_found:
             raise ValidationError(_("Listing not found"))
 
-        return listing_id
+        return property_listing.listing_id

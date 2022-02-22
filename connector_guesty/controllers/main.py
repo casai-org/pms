@@ -36,8 +36,8 @@ class GuestyController(http.Controller):
         if not reservation:
             raise ValidationError(_("Reservation data not found!"))
 
-        guesty_account = reservation.get("accountId")
-        listing_id = reservation.get("listingId")
+        guesty_account = reservation["accountId"]
+        listing_id = reservation["listingId"]
 
         # what is the related backend?
         listing = (
@@ -58,11 +58,13 @@ class GuestyController(http.Controller):
         backend = (
             request.env["backend.guesty"]
             .sudo()
-            .search([("listing_ids.id", "=", listing.id)], limit=1)
+            .search([("listing_property_ids.listing_id", "=", listing.id)])
         )
 
         if not backend.exists():
             raise ValidationError(_("No backend defined"))
+
+        backend.ensure_one()
 
         success, res = backend.sudo().call_get_request(
             url_path="reservations/{}".format(reservation.get("_id")),

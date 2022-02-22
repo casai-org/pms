@@ -18,6 +18,9 @@
                     <group>
                         <group>
                             <field name="guesty_id" />
+                            <field name="guesty_account_id" />
+                            <field name="guesty_guest_id" />
+                            <field name="sale_order_id" />
                         </group>
                     </group>
                 </page>
