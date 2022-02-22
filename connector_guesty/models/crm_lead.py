@@ -15,8 +15,16 @@ _log = logging.getLogger(__name__)
 class CrmLead(models.Model):
     _inherit = "crm.lead"
 
+    def _check_value(self):
+        if self.bed_number > 6 or self.bed_number < 0:
+            raise ValidationError(_('Enter Value Between 0-.'))
+
     check_in = fields.Date()
     check_out = fields.Date()
+    state_filter = fields.Many2one('res.country.state', string="City")
+    neighborhood = fields.Char(string="Neighborhood")
+    bed_number = fields.Selection([('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'),
+                                   ('5', '5'), ('6', '6')], string="Number of Bedrooms", default="")
     pms_available_listing_ids = fields.One2many("pms.available.listing", "lead_id")
 
     def message_new(self, msg_dict, custom_values=None):
@@ -48,8 +56,7 @@ class CrmLead(models.Model):
         return lead
 
     def search_availability(self):
-        if not self.check_in or not self.check_out:
-            raise ValidationError(_("Please fill the required fields"))
+
         query = """
         select *
         from (
@@ -77,11 +84,32 @@ class CrmLead(models.Model):
 
         self.env.cr.execute(query)
         res = self.env.cr.dictfetchall()
-        listing_ids = [a.get("listing_id") for a in res]
-        property_list = (
-            self.env["pms.property"].sudo().search([("guesty_id", "in", listing_ids)])
-        )
+        listing_ids = [a.get("listing_id")for a in res]
+        #property_list = (
+         #   self.env["pms.property"].sudo().search([("guesty_id", "in", listing_ids)])
+        #)
+        property_domain = [("guesty_id", "in", listing_ids)]
+        if self.bed_number and self.neighborhood and self.state_filter:
+            property_domain.append(("state_id", "=", self.state_filter.id))
+            property_domain.append(("l10n_mx_edi_colony", "=", self.neighborhood))
+            property_domain.append(("qty_bedroom", ">=", int(self.bed_number)))
+        if self.state_filter and self.neighborhood:
+            property_domain.append(("state_id", "=", self.state_filter.id))
+            property_domain.append(("l10n_mx_edi_colony", "=", self.neighborhood))
+        if self.state_filter and self.bed_number:
+            property_domain.append(("state_id", "=", self.state_filter.id))
+            property_domain.append(("qty_bedroom", ">=", int(self.bed_number)))
+        if self.neighborhood and self.bed_number:
+            property_domain.append(("l10n_mx_edi_colony", "=", self.neighborhood))
+            property_domain.append(("qty_bedroom", ">=", int(self.bed_number)))
+        if self.state_filter:
+            property_domain.append(("state_id", "=", self.state_filter.id))
+        if self.neighborhood:
+            property_domain.append(("l10n_mx_edi_colony", "=", self.neighborhood))
+        if self.bed_number:
+            property_domain.append(("qty_bedroom", ">=", int(self.bed_number)))
 
+        property_list = self.env["pms.property"].search(property_domain)
         _log.info(property_list)
 
         backend = self.env.company.guesty_backend_id
