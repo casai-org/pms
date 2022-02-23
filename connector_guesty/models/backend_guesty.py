@@ -415,6 +415,7 @@ class BackendGuesty(models.Model):
                 avg_price = sum(a.get("price") for a in calendar_data) / len(
                     calendar_data
                 )
+
                 result[listing_id] = {"currency": currency, "price": avg_price}
 
         return result
