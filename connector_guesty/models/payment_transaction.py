@@ -77,6 +77,8 @@ class PaymentTransaction(models.Model):
                 )
                 if reservation_id:
                     # If reservation is not confirmed, we do it
+                    if sale.state in ["approved"]:
+                        sale.action_confirm()
                     reservation_id.guesty_push_payment()
 
         return res
