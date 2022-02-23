@@ -404,11 +404,16 @@ class BackendGuesty(models.Model):
                 params={"startDate": check_in, "endDate": check_out},
             )
             if success:
-                calendar_data = result.get("data", {}).get("days", [])
+                calendar_data = res.get("data", {}).get("days", [])
                 currency = calendar_data[0]["currency"]
                 avg_price = sum(a.get("price") for a in calendar_data) / len(
                     calendar_data
                 )
-                result[listing_id] = {"currency": currency, "price": avg_price}
+
+                result[listing_id] = {
+                    "currency": currency,
+                    "price": avg_price,
+                    "no_nights": len(calendar_data),
+                }
 
         return result
