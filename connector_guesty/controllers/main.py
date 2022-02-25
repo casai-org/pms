@@ -57,7 +57,7 @@ class GuestyController(http.Controller):
 
         if success:
             request.env["pms.reservation"].with_delay().guesty_pull_reservation(
-                backend, reservation
+                backend, res
             )
             return {"success": True}
         else:
