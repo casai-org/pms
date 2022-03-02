@@ -420,7 +420,7 @@ class PmsReservation(models.Model):
         if cleaning_line and reservation_line:
             fare_cleaning = self.sale_order_id.currency_id._convert(
                 cleaning_line.price_subtotal,
-                guesty_listing_price.currency_id,
+                guesty_currency,
                 self.sale_order_id.company_id,
                 self.sale_order_id.date_order,
             )
