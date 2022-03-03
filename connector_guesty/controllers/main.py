@@ -78,3 +78,19 @@ class GuestyController(http.Controller):
             raise ValidationError(_("Listing data not found"))
         request.env["pms.property"].with_delay().guesty_pull_listing(backend, listing)
         return {"success": True}
+
+    @http.route(
+        "/guesty/webhook", methods=["POST"], auth="public", csrf=False, type="json"
+    )
+    def webhook(self):
+        data = request.jsonrequest
+        if data.get("event") == "listing.calendar.updated":
+            # do actions for calendars
+            self.do_calendar_update(data)
+
+    def do_calendar_update(self, payload):
+        calendar_dates = payload.get("calendar", [])
+        for calendar in calendar_dates:
+            request.env[
+                "pms.guesty.calendar"
+            ].sudo().with_delay().guesty_pull_calendar_event(calendar)

@@ -22,10 +22,14 @@
                         <group>
                             <field
                                 name="check_in"
+                                widget="daterange"
+                                options="{'related_end_date': 'check_out', 'minDate': 0}"
                                 attrs="{'readonly':[('state', '!=', 'new')]}"
                             />
                             <field
                                 name="check_out"
+                                widget="daterange"
+                                options="{'related_start_date': 'check_in'}"
                                 attrs="{'readonly':[('state', '!=', 'new')]}"
                             />
                         </group>
@@ -86,6 +90,19 @@
                 <field name="total_price" />
                 <field name="currency" />
             </tree>
+        </field>
+    </record>
+
+    <record id="crm_listing_availability_search_view" model="ir.ui.view">
+        <field name="name">Availability</field>
+        <field name="model">crm.listing.availability</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="property_id" />
+                <field name="colony" />
+                <field name="city" />
+                <field name="country_id" />
+            </search>
         </field>
     </record>
 </odoo>
