@@ -24,9 +24,14 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//sheet/div/h1" position="inside">
-                <hr/>
-                <h2>Company</h2>
+            <xpath expr="//field[@name='parent_id']" position="attributes">
+                <attribute name="placeholder">Company</attribute>
+            </xpath>
+            <xpath expr="//sheet/div/div" position="inside">
+                <field name="parent_ids" placeholder="Company" widget="res_partner_many2one" domain="[('is_company', '=', True)]" context="{'default_is_company': True, 'show_vat': True}" attrs="{'invisible': ['|', '&amp;', ('is_company','=', True),('parent_id', '=', False),('company_name', '!=', False),('company_name', '!=', '')]}"/>
+            </xpath>
+            <xpath expr="//sheet/div/div/field[@name='parent_id']" position="attributes">
+                <attribute name="attrs">{'invisible': ['|', '|', '|', '&amp;', ('company_type', '=', 'company'), ('company_type', '=', 'person'), ('is_company','=', True), ('parent_id', '=', False),('company_name', '!=', False),('company_name', '!=', '')]}</attribute>
             </xpath>
         </field>
     </record>

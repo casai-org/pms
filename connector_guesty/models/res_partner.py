@@ -7,3 +7,4 @@ class ResPartner(models.Model):
     _inherit = "res.partner"
 
     guesty_ids = fields.One2many("res.partner.guesty", "partner_id")
+    parent_ids = fields.Many2one("res.partner", "Company")
