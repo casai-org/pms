@@ -335,6 +335,7 @@ class BackendGuesty(models.Model):
     def call_post_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
         result = requests.post(url=url, json=body, auth=(self.api_key, self.api_secret))
+        # raise ValidationError(_("Hola Mundo"))
 
         if result.status_code == 200:
             return True, result.json()
@@ -343,6 +344,10 @@ class BackendGuesty(models.Model):
             return False, result.content.decode()
 
     def call_put_request(self, url_path, body):
+        _log.info("======================= CALLING =====================")
+        _log.info(url_path)
+        _log.info(body)
+        # raise ValidationError(_("Hola Mundo"))
         url = "{}/{}".format(self.api_url, url_path)
         result = requests.put(url=url, json=body, auth=(self.api_key, self.api_secret))
 

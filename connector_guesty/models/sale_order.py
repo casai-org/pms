@@ -36,18 +36,25 @@ class SaleOrder(models.Model):
 
     def write(self, values):
         res = super().write(values)
+        _fields = [f for f in values if f in ["order_line", "state"]]
+
+        _log.info(_fields)
+
         if (
             self.company_id.guesty_backend_id
             and not self.env.context.get("ignore_guesty_push", False)
-            and "order_line" in values
+            and len(_fields) > 0
         ):
             for sale in self:
+                if self.state == "draft":
+                    continue
+
                 reservation = self.env["pms.reservation"].search(
                     [("sale_order_id", "=", sale.id)]
                 )
 
                 if reservation and reservation.guesty_id:
-                    reservation.with_delay().guesty_push_reservation_update()
+                    reservation.guesty_push_reservation_update()
         return res
 
     def action_cancel(self):
