@@ -75,10 +75,14 @@ class PmsReservation(models.Model):
 
     def write(self, values):
         res = super(PmsReservation, self).write(values)
+        _black_list = ["workflow_process_id", "analytic_account_id"]
+        _fields = [a for a in values.keys() if a not in _black_list]
+
         if (
             self.env.company.guesty_backend_id
             and self.guesty_id
             and not self.env.context.get("ignore_guesty_push", False)
+            and len(_fields) > 0
         ):
             self.with_delay().guesty_push_reservation_update()
         return res
