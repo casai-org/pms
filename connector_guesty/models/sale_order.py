@@ -38,8 +38,6 @@ class SaleOrder(models.Model):
         res = super().write(values)
         _fields = [f for f in values if f in ["order_line", "state"]]
 
-        _log.info(_fields)
-
         if (
             self.company_id.guesty_backend_id
             and not self.env.context.get("ignore_guesty_push", False)

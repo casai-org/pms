@@ -181,7 +181,6 @@ class PmsReservation(models.Model):
         backend = self.env.company.guesty_backend_id
         body = self.parse_push_reservation_data(backend)
         body["status"] = "reserved"
-        # guesty_push_reservation_update
 
         success, result = backend.call_put_request(
             url_path="reservations/{}".format(self.guesty_id), body=body
