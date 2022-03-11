@@ -4,9 +4,10 @@
         inherit_id="sale.report_saleorder_document"
         name="sale.order.report.custom"
     >
-        <xpath expr="//div[@class='page']" position="before">
+        <xpath expr="//div[@id='informations']" position="after">
             <div class="o_check_out_info">
-                <h3>Check in/out Information</h3>
+                <br/>
+                <strong>Reservation details</strong>
                 <table class="table table-sm o_second_table">
                     <thead style="display: table-row-group">
                         <tr>
