@@ -1,0 +1,18 @@
+<odoo>
+    <template
+        id="sale_order_portal_template_custom"
+        inherit_id="sale.sale_order_portal_content"
+        name="sale.order.portal.template.custom"
+    >
+        <xpath expr="//div[@class='row']" position="after">
+            <div>
+                <br/>
+                <strong class="d-block mb-1">Reservation details</strong>
+                <span>Check in: </span> <b t-field="sale_order.check_in"/>
+                <br/>
+                <span>Check out: </span> <b t-field="sale_order.check_out"/>
+                <hr/>
+            </div>
+        </xpath>
+    </template>
+</odoo>
