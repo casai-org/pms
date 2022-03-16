@@ -150,47 +150,47 @@ class WizCrmLeadNewReservation(models.TransientModel):
                 co = tz.localize(co).astimezone(utc).replace(tzinfo=None)
 
                 if reservation_product_id:
+                    order_lines = [
+                        (
+                            0,
+                            False,
+                            {
+                                "product_uom_qty": _self.no_nights,
+                                "price_unit": _self.price,
+                                "product_id": reservation_product_id.id,
+                                "reservation_id": guesty_price_id.id,
+                                "property_id": _self.property_id.id,
+                                "start": ci,
+                                "stop": co,
+                                "discount": self.discount,
+                            },
+                        )
+                    ]
+
+                    if self.cleaning_fee_price > 0:
+                        order_lines.append(
+                            (
+                                0,
+                                False,
+                                {
+                                    "product_id": backend.cleaning_product_id.id,
+                                    "name": backend.cleaning_product_id.name,
+                                    "product_uom_qty": 1,
+                                    "price_unit": self.cleaning_fee_price,
+                                },
+                            )
+                        )
+
                     so = self.env["sale.order"].create(
                         {
                             "partner_id": _self.crm_lead_id.partner_id.id,
                             "opportunity_id": _self.crm_lead_id.id,
                             "pricelist_id": self.price_list_id.id,
-                            "order_line": [
-                                (
-                                    0,
-                                    False,
-                                    {
-                                        "product_id": reservation_product_id.id,
-                                        "reservation_id": guesty_price_id.id,
-                                        "property_id": _self.property_id.id,
-                                        "start": ci,
-                                        "stop": co,
-                                        "discount": self.discount,
-                                    },
-                                )
-                            ],
+                            "order_line": order_lines,
                         }
                     )
 
                     so_ids.append(so.id)
-
-                    if self.cleaning_fee_price > 0:
-                        so.write(
-                            {
-                                "order_line": [
-                                    (
-                                        0,
-                                        False,
-                                        {
-                                            "product_id": backend.cleaning_product_id.id,
-                                            "name": backend.cleaning_product_id.name,
-                                            "product_uom_qty": 1,
-                                            "price_unit": self.cleaning_fee_price,
-                                        },
-                                    )
-                                ]
-                            }
-                        )
 
         return {
             "type": "ir.actions.act_window",
