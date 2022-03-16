@@ -44,7 +44,7 @@ class SaleOrder(models.Model):
             and len(_fields) > 0
         ):
             for sale in self:
-                if self.state == "draft":
+                if sale.state == "draft":
                     continue
 
                 reservation_ids = self.env["pms.reservation"].search(
