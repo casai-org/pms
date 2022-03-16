@@ -47,12 +47,14 @@ class SaleOrder(models.Model):
                 if self.state == "draft":
                     continue
 
-                reservation = self.env["pms.reservation"].search(
+                reservation_ids = self.env["pms.reservation"].search(
                     [("sale_order_id", "=", sale.id)]
                 )
 
-                if reservation and reservation.guesty_id:
-                    reservation.guesty_push_reservation_update()
+                if reservation_ids:
+                    for reservation in reservation_ids:
+                        if reservation.guesty_id:
+                            reservation.guesty_push_reservation_update()
         return res
 
     def action_cancel(self):
