@@ -6,7 +6,6 @@ import logging
 import pytz
 
 from odoo import _, fields, models
-from odoo.exceptions import ValidationError
 
 _log = logging.getLogger(__name__)
 
@@ -64,32 +63,28 @@ class WizCrmLeadNewReservation(models.TransientModel):
         no_nights = (self.check_out - self.check_in).days
 
         for _prop in _search_props:
-            calendar_info = calendar_result[_prop.guesty_id]
-            unit_price = calendar_info["price"]
-            currency = calendar_info["currency"]
-
-            currency_id = self.env["res.currency"].search(
-                [("name", "=", currency)], limit=1
+            _product = (
+                self.env.company.guesty_backend_id.reservation_product_id.with_context(
+                    pricelist=self.price_list_id.id,
+                    property_id=_prop,
+                    reservation_start=self.check_in,
+                    reservation_stop=self.check_out,
+                    reservation_date=datetime.datetime.now(),
+                )
             )
 
-            if not currency_id:
-                raise ValidationError(_("Currency not enabled: {}").format(currency))
-
-            currency_price = currency_id._convert(
-                from_amount=unit_price,
-                to_currency=self.price_list_id.currency_id,
-                company=self.env.company,
-                date=datetime.datetime.now(),
-            )
+            # noinspection PyProtectedMember
+            _product._compute_product_price()
+            custom_price = _product.price
 
             self.env["crm.listing.availability"].sudo().create(
                 {
                     "crm_lead_id": self.crm_lead_id.id,
                     "property_id": _prop.id,
-                    "price": currency_price,
+                    "price": custom_price,
                     "currency": self.price_list_id.currency_id.name,
                     "no_nights": no_nights,
-                    "total_price": no_nights * currency_price,
+                    "total_price": no_nights * custom_price,
                 }
             )
 
