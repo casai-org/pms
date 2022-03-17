@@ -6,12 +6,20 @@
     >
         <xpath expr="//div[@class='row']" position="after">
             <div>
-                <br/>
+                <br />
                 <strong class="d-block mb-1">Reservation details</strong>
-                <span>Check in: </span> <b t-field="sale_order.check_in"/>
-                <br/>
-                <span>Check out: </span> <b t-field="sale_order.check_out"/>
-                <hr/>
+                <span>Check in:</span>
+                <b
+                    t-field="sale_order.check_in"
+                    t-options='{"widget": "datetime", "format": "MMM dd, Y HH:mm"}'
+                />
+                <br />
+                <span>Check out:</span>
+                <b
+                    t-field="sale_order.check_out"
+                    t-options='{"widget": "datetime", "format": "MMM dd, Y HH:mm"}'
+                />
+                <hr />
             </div>
         </xpath>
     </template>
