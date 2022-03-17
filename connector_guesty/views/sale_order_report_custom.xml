@@ -20,13 +20,13 @@
                             <td name="td_check_in">
                                 <span
                                     t-field="doc.check_in"
-                                    t-options='{"widget": "date", "format": "dd MMM Y"}'
+                                    t-options='{"widget": "datetime", "format": "MMM dd, Y HH:mm"}'
                                 />
                             </td>
                             <td name="td_check_out" class="text-left">
                                 <span
                                     t-field="doc.check_out"
-                                    t-options='{"widget": "date", "format": "dd MMM Y"}'
+                                    t-options='{"widget": "datetime", "format": "MMM dd, Y HH:mm"}'
                                 />
                             </td>
                         </tr>
