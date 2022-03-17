@@ -75,7 +75,4 @@ class ProductProduct(models.Model):
             reservation_date,
         )
 
-        _log.info(price_currency)
-        _log.info(currency_name)
-
         return price_currency
