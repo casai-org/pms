@@ -34,27 +34,25 @@ class SaleOrder(models.Model):
     def create(self, values):
         return super().create(values)
 
-    def write(self, values):
-        res = super().write(values)
-        _fields = [f for f in values if f in ["order_line", "state"]]
+    def action_quotation_send(self):
+        res = super().action_quotation_send()
+        for sale in self:
+            reservation_ids = self.env["pms.reservation"].search(
+                [("sale_order_id", "=", sale.id)]
+            )
+            for reservation in reservation_ids:
+                reservation.guesty_check_availability()
+                reservation.guesty_push_reservation_update()
+        return res
 
-        if (
-            self.company_id.guesty_backend_id
-            and not self.env.context.get("ignore_guesty_push", False)
-            and len(_fields) > 0
-        ):
-            for sale in self:
-                if sale.state == "draft":
-                    continue
-
-                reservation_ids = self.env["pms.reservation"].search(
-                    [("sale_order_id", "=", sale.id)]
-                )
-
-                if reservation_ids:
-                    for reservation in reservation_ids:
-                        if reservation.guesty_id:
-                            reservation.guesty_push_reservation_update()
+    def action_draft(self):
+        res = super(SaleOrder, self).action_draft()
+        for sale in self:
+            reservation_ids = self.env["pms.reservation"].search(
+                [("sale_order_id", "=", sale.id)]
+            )
+            for reservation in reservation_ids:
+                reservation.action_draft()
         return res
 
     def action_cancel(self):

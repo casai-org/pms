@@ -46,8 +46,8 @@ class PmsReservation(models.Model):
         if self.env.context.get("ignore_overlap"):
             return
 
-        # noinspection PyProtectedMember
-        return super(PmsReservation, self)._check_no_of_reservations()
+        for record in self:
+            record.guesty_check_availability()
 
     @api.model
     def create(self, values):
@@ -74,19 +74,13 @@ class PmsReservation(models.Model):
             res.guesty_push_reservation()
         return res
 
-    def write(self, values):
-        res = super(PmsReservation, self).write(values)
-        _black_list = ["workflow_process_id", "analytic_account_id"]
-        _fields = [a for a in values.keys() if a not in _black_list]
+    def action_draft(self):
+        for record in self:
+            record.write(
+                {"stage_id": self.env.company.guesty_backend_id.stage_inquiry_id.id}
+            )
 
-        if (
-            self.env.company.guesty_backend_id
-            and self.guesty_id
-            and not self.env.context.get("ignore_guesty_push", False)
-            and len(_fields) > 0
-        ):
-            self.with_delay().guesty_push_reservation_update()
-        return res
+            record.guesty_push_reservation_update(state="inquiry")
 
     def action_book(self):
         if (
@@ -210,12 +204,15 @@ class PmsReservation(models.Model):
 
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
 
-    def guesty_push_reservation_update(self):
+    def guesty_push_reservation_update(self, state=None):
         backend = self.env.company.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend defined"))
 
         body = self.parse_push_reservation_data(backend)
+        if state:
+            body["status"] = state
+
         success, res = backend.call_put_request(
             url_path="reservations/{}".format(self.guesty_id), body=body
         )
@@ -335,13 +332,14 @@ class PmsReservation(models.Model):
             else:
                 return _("Ignore Update {} {} - {}").format(_id, update_date, last_date)
 
-        invoice_lines = payload.get("money", {}).get("invoiceItems")
-        no_nights = payload.get("nightsCount", 0)
-        status = payload.get("status", "inquiry")
+        if reservation_id.stage_id.id != backend.stage_inquiry_id.id:
+            invoice_lines = payload.get("money", {}).get("invoiceItems")
+            no_nights = payload.get("nightsCount", 0)
+            status = payload.get("status", "inquiry")
 
-        reservation_id.with_context(context).with_delay().build_so(
-            invoice_lines, no_nights, status, backend
-        )
+            reservation_id.with_context(context).with_delay().build_so(
+                invoice_lines, no_nights, status, backend
+            )
 
         return reservation_id
 
