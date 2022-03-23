@@ -64,6 +64,7 @@ class GuestyController(http.Controller):
                         "money",
                         "nightsCount",
                         "plannedArrival",
+                        "plannedDeparture",
                     ]
                 )
             },
