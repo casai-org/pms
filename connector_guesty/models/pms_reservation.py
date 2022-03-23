@@ -43,11 +43,18 @@ class PmsReservation(models.Model):
 
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
-        if self.env.context.get("ignore_overlap"):
-            return
-
-        for record in self:
-            record.guesty_check_availability()
+        if self.env.company.guesty_backend_id:
+            if self.env.context.get("ignore_overlap"):
+                return
+            for record in self:
+                if record.stage_id.id not in [
+                    self.env.company.guesty_backend_id.stage_canceled_id.id,
+                    self.env.company.guesty_backend_id.stage_inquiry_id.id,
+                ]:
+                    record.guesty_check_availability()
+        else:
+            # noinspection PyProtectedMember
+            return super()._check_no_of_reservations()
 
     @api.model
     def create(self, values):
