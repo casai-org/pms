@@ -142,8 +142,6 @@ class PmsReservation(models.Model):
         if self.stage_id.id == self.env.ref("pms_sale.pms_stage_confirmed").id:
             return True
 
-        _log.info(self.stop)
-
         real_stop_date = self.stop - datetime.timedelta(days=1)
         calendar_dates = self.property_id.guesty_get_calendars(
             self.start, real_stop_date
