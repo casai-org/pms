@@ -7,6 +7,7 @@ import pytz
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import float_compare
 
 _log = logging.getLogger(__name__)
 
@@ -181,6 +182,7 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to cancel reservation"))
 
         self.message_post(body=_("Reservation cancelled successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_reserve(self):
         backend = self.env.company.guesty_backend_id
@@ -196,6 +198,7 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to reserve reservation"))
 
         self.message_post(body=_("Reservation reserved successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_confirm(self):
         backend = self.env.company.guesty_backend_id
@@ -210,6 +213,7 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to confirm reservation : {}".format(result)))
 
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_update(self, state=None):
         backend = self.env.company.guesty_backend_id
@@ -230,6 +234,35 @@ class PmsReservation(models.Model):
         self.with_context(context).write(
             {"guesty_last_updated_date": datetime.datetime.now()}
         )
+
+        self.sudo().with_delay().compare_updated_result(res)
+
+    def compare_updated_result(self, result):
+        if "money" in result:
+            total_amount = result["money"]["netIncome"]
+            currency = result["money"]["currency"]
+
+            currency_id = (
+                self.env["res.currency"].sudo().search([("name", "=", currency)])
+            )
+
+            if currency_id:
+                sale_amount = self.sale_order_id.amount_total
+                real_amount = currency_id._convert(
+                    total_amount,
+                    self.sale_order_id.currency_id,
+                    self.env.company,
+                    self.sale_order_id.date_order,
+                )
+                compare_values = float_compare(real_amount, sale_amount, 2)
+                if compare_values != 0:
+                    raise ValidationError(
+                        _("Amount difference {} vs {} - {}").format(
+                            round(real_amount, 2),
+                            self.sale_order_id.amount_total,
+                            self.guesty_id,
+                        )
+                    )
 
     def guesty_push_payment(self):
         backend = self.env.company.guesty_backend_id
