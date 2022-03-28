@@ -29,6 +29,27 @@ class PmsProperty(models.Model):
         string="Days to quotation expiration", default=1
     )
 
+    property_host = fields.Char(string="Host")
+    has_security = fields.Boolean(string="Has security")
+    has_elevator = fields.Boolean(string="Has elevator")
+    parking_spaces = fields.Integer(string="Parking spaces")
+    parking_spaces_description = fields.Text(string="Parking spaces description")
+    has_dishwasher = fields.Boolean(string="Has dishwasher")
+    has_washing_machine = fields.Boolean(string="Has washing machine")
+    has_dryer = fields.Boolean(string="Has dryer")
+    has_sofa_bed = fields.Boolean(string="Has sofa bed")
+    has_working_space = fields.Boolean(string="Has working space")
+    has_rooftop = fields.Boolean(string="Has rooftop space")
+    has_gym = fields.Boolean(string="Has gym")
+    has_pool = fields.Boolean(string="Has pool")
+    has_air_conditioning = fields.Boolean(string="Has air conditioning")
+    has_cable_tv = fields.Boolean(string="Has cable tv")
+    internet_speed_up_mbps = fields.Integer(string="Internet speed (mbps)")
+    internet_speed_down_mbps = fields.Integer(string="Internet speed (mbps)")
+
+    exit_date = fields.Date(string="Exit date")
+    ota_description = fields.Text(string="OTAs description")
+
     @api.constrains("days_quotation_expiration")
     def check_days_quotation_expiration(self):
         if self.days_quotation_expiration > 2:

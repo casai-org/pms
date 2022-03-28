@@ -41,11 +41,37 @@
         </field>
     </record>
 
+    <record id="view_pms_property_tree_casai" model="ir.ui.view">
+        <field name="name">pms.property.tree.casai</field>
+        <field name="model">pms.property</field>
+        <field name="inherit_id" ref="pms_base.view_pms_property_tree" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='owner_id']" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="street_name" optional="show" />
+                <field name="l10n_mx_edi_colony" optional="show" />
+                <field name="no_of_guests" optional="show" string="Occupancy" />
+                <field name="qty_bedroom" optional="show" string="Rooms" />
+                <field name="qty_half_bathroom" optional="show" string="Half Baths" />
+                <field name="qty_kitchen" optional="show" />
+                <field name="terrace" optional="show" string="Terrace" />
+                <field name="balcony" optional="show" string="Balcony" />
+                <field name="heating" optional="show" string="Heating" />
+                <field name="street2" optional="show" string="Neighborhood" />
+            </xpath>
+        </field>
+    </record>
+
     <record model="ir.ui.view" id="view_guesty_pms_property_search">
         <field name="name">pms.property.search</field>
         <field name="model">pms.property</field>
         <field name="inherit_id" ref="pms_base.view_pms_property_search" />
         <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="no_of_guests" string="Num. Guests" readonly="1" />
+            </xpath>
             <xpath expr="//filter[@name='active']" position="after">
                 <separator />
                 <filter
