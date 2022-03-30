@@ -100,6 +100,17 @@
                     attrs="{'readonly': ['|', ('allow_discount', '=', False), ('state', 'in', ['waiting_approval', 'approved'])]}"
                 />
             </xpath>
+            <xpath expr="//group[@name='order_details']//field[@name='currency_id']" position="attributes">
+                <attribute name="invisible">False</attribute>
+                <attribute name="readonly">False</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//tree//field[@name='currency_id']" position="attributes">
+                <attribute name="invisible">False</attribute>
+                <attribute name="readonly">False</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']//form//field[@name='stop']" position="after">
+                <field name="currency_id" invisible="0" readonly="0"/>
+            </xpath>
         </field>
     </record>
 </odoo>
