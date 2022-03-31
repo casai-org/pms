@@ -30,22 +30,30 @@ class GuestyController(http.Controller):
         type="json",
     )
     def reservations_webhook(self, **data):
-        try:
-            company, backend = self.validate_get_company(data)
-            event = data.get("event")
-            reservation = event.get("reservation")
-        except Exception as ex:
-            _log.warning(str(ex))
+        if data.get("event") and data.get("event").get("reservation"):
+            version = "1.0"
+        else:
+            version = "2.0"
+
+        if version == "1.0":
+            reservation = data.get("event").get("reservation")
+        else:
             reservation = request.jsonrequest.get("reservation")
-            company = request.env.company
-            backend = company.guesty_backend_id
 
         if not reservation:
             raise ValidationError(_("Reservation data not found!"))
 
-        if not company:
+        property_id = (
+            request.env["pms.property"]
+            .sudo()
+            .search([("guesty_id", "=", reservation.get("_id"))])
+        )
+        company_id = property_id.company_id
+
+        if not company_id:
             raise ValidationError(_("No company was found"))
 
+        backend = company_id.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend was found"))
 
@@ -69,9 +77,9 @@ class GuestyController(http.Controller):
         )
 
         if success:
-            request.env["pms.reservation"].with_delay().guesty_pull_reservation(
-                backend, res
-            )
+            request.env["pms.reservation"].with_company(
+                company_id
+            ).with_delay().guesty_pull_reservation(backend, res)
             return {"success": True}
         else:
             raise ValidationError(str(res))
