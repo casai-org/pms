@@ -367,7 +367,18 @@ class BackendGuesty(models.Model):
         while True:
             success, res = self.call_get_request(
                 url_path="listings",
-                params={"city": "Ciudad de México"},
+                params={
+                    "fields": " ".join(
+                        [
+                            "title",
+                            "nickname",
+                            "accountId",
+                            "address.city",
+                            "active",
+                            "isListed",
+                        ]
+                    ),
+                },
                 limit=100,
                 skip=skip,
             )
@@ -377,25 +388,20 @@ class BackendGuesty(models.Model):
             if success:
                 result = res.get("results", [])
                 for record in result:
-                    property_id = property_ids.filtered(
-                        lambda s: s.ref == record.get("nickname")
-                    )
-                    if property_id and len(property_id) == 1:
-                        property_id.write(
-                            {
-                                "guesty_id": record.get("_id"),
-                                "name": "{} / {}".format(
-                                    record.get("nickname"), record.get("title")
-                                ),
-                            }
-                        )
-                    else:
-                        _log.info("Not found: {}".format(record.get("nickname")))
+                    self.env["pms.guesty.listing"].guesty_pull_listing(record)
 
                 if len(result) == 0:
                     break
             else:
                 break
+
+        for property_id in property_ids.filtered(lambda x: not x.guesty_id):
+            record_match = self.env["pms.guesty.listing"].search(
+                [("name", "=", property_id.ref)]
+            )
+            if record_match:
+                property_id.guesty_id = record_match.external_id
+                property_id.guesty_listing_ids += record_match
 
     def guesty_get_calendar_info(self, check_in, check_out, property_ids):
         listing_ids = property_ids.mapped("guesty_id")
