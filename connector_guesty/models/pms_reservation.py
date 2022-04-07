@@ -7,6 +7,7 @@ import pytz
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import float_compare
 
 _log = logging.getLogger(__name__)
 
@@ -43,11 +44,18 @@ class PmsReservation(models.Model):
 
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
-        if self.env.context.get("ignore_overlap"):
-            return
-
-        # noinspection PyProtectedMember
-        return super(PmsReservation, self)._check_no_of_reservations()
+        if self.env.company.guesty_backend_id:
+            if self.env.context.get("ignore_overlap"):
+                return
+            for record in self:
+                if record.stage_id.id not in [
+                    self.env.company.guesty_backend_id.stage_canceled_id.id,
+                    self.env.company.guesty_backend_id.stage_inquiry_id.id,
+                ]:
+                    record.guesty_check_availability()
+        else:
+            # noinspection PyProtectedMember
+            return super()._check_no_of_reservations()
 
     @api.model
     def create(self, values):
@@ -74,19 +82,13 @@ class PmsReservation(models.Model):
             res.guesty_push_reservation()
         return res
 
-    def write(self, values):
-        res = super(PmsReservation, self).write(values)
-        _black_list = ["workflow_process_id", "analytic_account_id"]
-        _fields = [a for a in values.keys() if a not in _black_list]
+    def action_draft(self):
+        for record in self:
+            record.write(
+                {"stage_id": self.env.company.guesty_backend_id.stage_inquiry_id.id}
+            )
 
-        if (
-            self.env.company.guesty_backend_id
-            and self.guesty_id
-            and not self.env.context.get("ignore_guesty_push", False)
-            and len(_fields) > 0
-        ):
-            self.with_delay().guesty_push_reservation_update()
-        return res
+            record.guesty_push_reservation_update(state="inquiry")
 
     def action_book(self):
         if (
@@ -180,6 +182,7 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to cancel reservation"))
 
         self.message_post(body=_("Reservation cancelled successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_reserve(self):
         backend = self.env.company.guesty_backend_id
@@ -195,6 +198,7 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to reserve reservation"))
 
         self.message_post(body=_("Reservation reserved successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_confirm(self):
         backend = self.env.company.guesty_backend_id
@@ -209,13 +213,17 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to confirm reservation : {}".format(result)))
 
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
+        self.sudo().with_delay().compare_updated_result(result)
 
-    def guesty_push_reservation_update(self):
+    def guesty_push_reservation_update(self, state=None):
         backend = self.env.company.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend defined"))
 
         body = self.parse_push_reservation_data(backend)
+        if state:
+            body["status"] = state
+
         success, res = backend.call_put_request(
             url_path="reservations/{}".format(self.guesty_id), body=body
         )
@@ -226,6 +234,35 @@ class PmsReservation(models.Model):
         self.with_context(context).write(
             {"guesty_last_updated_date": datetime.datetime.now()}
         )
+
+        self.sudo().with_delay().compare_updated_result(res)
+
+    def compare_updated_result(self, result):
+        if "money" in result:
+            total_amount = result["money"]["netIncome"]
+            currency = result["money"]["currency"]
+
+            currency_id = (
+                self.env["res.currency"].sudo().search([("name", "=", currency)])
+            )
+
+            if currency_id:
+                sale_amount = self.sale_order_id.amount_total
+                real_amount = currency_id._convert(
+                    total_amount,
+                    self.sale_order_id.currency_id,
+                    self.env.company,
+                    self.sale_order_id.date_order,
+                )
+                compare_values = float_compare(real_amount, sale_amount, 2)
+                if compare_values != 0:
+                    raise ValidationError(
+                        _("Amount difference {} vs {} - {}").format(
+                            round(real_amount, 2),
+                            self.sale_order_id.amount_total,
+                            self.guesty_id,
+                        )
+                    )
 
     def guesty_push_payment(self):
         backend = self.env.company.guesty_backend_id
@@ -335,13 +372,14 @@ class PmsReservation(models.Model):
             else:
                 return _("Ignore Update {} {} - {}").format(_id, update_date, last_date)
 
-        invoice_lines = payload.get("money", {}).get("invoiceItems")
-        no_nights = payload.get("nightsCount", 0)
-        status = payload.get("status", "inquiry")
+        if reservation_id.stage_id.id != backend.stage_inquiry_id.id:
+            invoice_lines = payload.get("money", {}).get("invoiceItems")
+            no_nights = payload.get("nightsCount", 0)
+            status = payload.get("status", "inquiry")
 
-        reservation_id.with_context(context).with_delay().build_so(
-            invoice_lines, no_nights, status, backend
-        )
+            reservation_id.with_context(context).with_delay().build_so(
+                invoice_lines, no_nights, status, backend
+            )
 
         return reservation_id
 
@@ -362,10 +400,59 @@ class PmsReservation(models.Model):
 
         pms_guest = backend.sudo().guesty_search_pull_customer(guest_id)
 
-        check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
-        check_out_time = datetime.datetime.strptime(
-            check_out[0:19], "%Y-%m-%dT%H:%M:%S"
+        check_in_date_part = check_in[0:10]
+        check_out_date_part = check_out[0:10]
+
+        checkin_date_date = datetime.datetime.strptime(check_in_date_part, "%Y-%m-%d")
+        checkout_date_date = datetime.datetime.strptime(check_out_date_part, "%Y-%m-%d")
+
+        tz = pytz.timezone(property_id.tz)
+
+        checkin_date_date = tz.localize(checkin_date_date).astimezone(pytz.UTC)
+        checkout_date_date = tz.localize(checkout_date_date).astimezone(pytz.UTC)
+
+        localize_ci = False
+        localize_co = False
+
+        if "plannedArrival" in reservation:
+            check_in_time_part = reservation["plannedArrival"]
+            _log.info(check_in_time_part)
+            checkin_time_time = datetime.datetime.strptime(
+                check_in_time_part, "%H:%M"
+            ).time()
+            localize_ci = True
+        else:
+            check_in_time_part = check_in[11:19]
+            checkin_time_time = datetime.datetime.strptime(
+                check_in_time_part, "%H:%M:%S"
+            ).time()
+
+        if "plannedDeparture" in reservation:
+            check_out_time_part = reservation["plannedDeparture"]
+            _log.info(check_out_time_part)
+            checkout_time_time = datetime.datetime.strptime(
+                check_out_time_part, "%H:%M"
+            ).time()
+            localize_co = True
+        else:
+            check_out_time_part = check_out[11:19]
+            checkout_time_time = datetime.datetime.strptime(
+                check_out_time_part, "%H:%M:%S"
+            ).time()
+
+        check_in_time = datetime.datetime.combine(checkin_date_date, checkin_time_time)
+        check_out_time = datetime.datetime.combine(
+            checkout_date_date, checkout_time_time
         )
+
+        if localize_ci:
+            check_in_time = (
+                tz.localize(check_in_time).astimezone(pytz.UTC).replace(tzinfo=None)
+            )
+        if localize_co:
+            check_out_time = (
+                tz.localize(check_out_time).astimezone(pytz.UTC).replace(tzinfo=None)
+            )
 
         guesty_last_updated_time = datetime.datetime.strptime(
             guesty_last_updated_date[0:19], "%Y-%m-%dT%H:%M:%S"
@@ -398,6 +485,8 @@ class PmsReservation(models.Model):
             "listingId": self.property_id.guesty_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
+            "plannedArrival": checkin_localized.strftime("%H:%M"),
+            "plannedDeparture": checkout_localized.strftime("%H:%M"),
             "guestId": customer.guesty_id,
             "money": {"invoiceItems": []},
         }
