@@ -1,6 +1,7 @@
 from . import (
     backend_guesty,
     pms_property,
+    pms_room,
     pms_reservation,
     pms_property_reservation,
     pms_guesty_calendar,
