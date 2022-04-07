@@ -362,10 +362,59 @@ class PmsReservation(models.Model):
 
         pms_guest = backend.sudo().guesty_search_pull_customer(guest_id)
 
-        check_in_time = datetime.datetime.strptime(check_in[0:19], "%Y-%m-%dT%H:%M:%S")
-        check_out_time = datetime.datetime.strptime(
-            check_out[0:19], "%Y-%m-%dT%H:%M:%S"
+        check_in_date_part = check_in[0:10]
+        check_out_date_part = check_out[0:10]
+
+        checkin_date_date = datetime.datetime.strptime(check_in_date_part, "%Y-%m-%d")
+        checkout_date_date = datetime.datetime.strptime(check_out_date_part, "%Y-%m-%d")
+
+        tz = pytz.timezone(property_id.tz)
+
+        checkin_date_date = tz.localize(checkin_date_date).astimezone(pytz.UTC)
+        checkout_date_date = tz.localize(checkout_date_date).astimezone(pytz.UTC)
+
+        localize_ci = False
+        localize_co = False
+
+        if "plannedArrival" in reservation:
+            check_in_time_part = reservation["plannedArrival"]
+            _log.info(check_in_time_part)
+            checkin_time_time = datetime.datetime.strptime(
+                check_in_time_part, "%H:%M"
+            ).time()
+            localize_ci = True
+        else:
+            check_in_time_part = check_in[11:19]
+            checkin_time_time = datetime.datetime.strptime(
+                check_in_time_part, "%H:%M:%S"
+            ).time()
+
+        if "plannedDeparture" in reservation:
+            check_out_time_part = reservation["plannedDeparture"]
+            _log.info(check_out_time_part)
+            checkout_time_time = datetime.datetime.strptime(
+                check_out_time_part, "%H:%M"
+            ).time()
+            localize_co = True
+        else:
+            check_out_time_part = check_out[11:19]
+            checkout_time_time = datetime.datetime.strptime(
+                check_out_time_part, "%H:%M:%S"
+            ).time()
+
+        check_in_time = datetime.datetime.combine(checkin_date_date, checkin_time_time)
+        check_out_time = datetime.datetime.combine(
+            checkout_date_date, checkout_time_time
         )
+
+        if localize_ci:
+            check_in_time = (
+                tz.localize(check_in_time).astimezone(pytz.UTC).replace(tzinfo=None)
+            )
+        if localize_co:
+            check_out_time = (
+                tz.localize(check_out_time).astimezone(pytz.UTC).replace(tzinfo=None)
+            )
 
         guesty_last_updated_time = datetime.datetime.strptime(
             guesty_last_updated_date[0:19], "%Y-%m-%dT%H:%M:%S"
@@ -398,6 +447,8 @@ class PmsReservation(models.Model):
             "listingId": self.property_id.guesty_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
+            "plannedArrival": checkin_localized.strftime("%H:%M"),
+            "plannedDeparture": checkout_localized.strftime("%H:%M"),
             "guestId": customer.guesty_id,
             "money": {"invoiceItems": []},
         }
