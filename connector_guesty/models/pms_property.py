@@ -50,6 +50,36 @@ class PmsProperty(models.Model):
     exit_date = fields.Date(string="Exit date")
     ota_description = fields.Text(string="OTAs description")
 
+    qty_total_bed = fields.Integer(
+        string="Total Beds", compute="_compute_qty_beds", store=True
+    )
+    qty_double_bed = fields.Integer(
+        string="Double Beds", compute="_compute_qty_beds", store=True
+    )
+    qty_queen_bed = fields.Integer(
+        string="Queen Beds", compute="_compute_qty_beds", store=True
+    )
+    qty_king_bed = fields.Integer(
+        string="King Beds", compute="_compute_qty_beds", store=True
+    )
+
+    @api.depends("room_ids")
+    def _compute_qty_beds(self):
+        for record in self:
+            qty_double_bed = 0
+            qty_queen_bed = 0
+            qty_king_bed = 0
+
+            for room in record.room_ids:
+                qty_double_bed = qty_double_bed + room.qty_double_bed
+                qty_queen_bed = qty_queen_bed + room.qty_queen_bed
+                qty_king_bed = qty_king_bed + room.qty_king_bed
+
+            record.qty_double_bed = qty_double_bed
+            record.qty_queen_bed = qty_queen_bed
+            record.qty_king_bed = qty_king_bed
+            record.qty_total_bed = qty_double_bed + qty_queen_bed + qty_king_bed
+
     @api.constrains("days_quotation_expiration")
     def check_days_quotation_expiration(self):
         if self.days_quotation_expiration > 2:

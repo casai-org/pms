@@ -15,6 +15,33 @@
                 <button name="property_get_price" string="Test Date" type="object" />
             </xpath>
             <xpath expr="//notebook" position="inside">
+                <page string="Additional Info">
+                    <group>
+                        <group>
+                            <field name="property_host" />
+                            <field name="has_security" />
+                            <field name="has_elevator" />
+                            <field name="parking_spaces" />
+                            <field name="parking_spaces_description" />
+                            <field name="has_dishwasher" />
+                            <field name="has_washing_machine" />
+                            <field name="has_dryer" />
+                            <field name="has_sofa_bed" />
+                        </group>
+                        <group>
+                            <field name="has_working_space" />
+                            <field name="has_rooftop" />
+                            <field name="has_gym" />
+                            <field name="has_pool" />
+                            <field name="has_air_conditioning" />
+                            <field name="has_cable_tv" />
+                            <field name="internet_speed_up_mbps" />
+                            <field name="internet_speed_down_mbps" />
+                            <field name="exit_date" />
+                            <field name="ota_description" />
+                        </group>
+                    </group>
+                </page>
                 <page string="Guesty Technical Info">
                     <group>
                         <group>
@@ -38,6 +65,25 @@
             <xpath expr="//field[@name='listing_type']" position="after">
                 <field name="days_quotation_expiration" />
             </xpath>
+
+
+            <xpath
+                expr="//field[@name='room_ids']/tree/field[@name='type_id']"
+                position="after"
+            >
+                <field name="qty_double_bed" />
+                <field name="qty_queen_bed" />
+                <field name="qty_king_bed" />
+            </xpath>
+
+
+            <xpath expr="//field[@name='qty_bedroom']" position="after">
+                <field name="qty_total_bed" />
+                <field name="qty_double_bed" />
+                <field name="qty_queen_bed" />
+                <field name="qty_king_bed" />
+            </xpath>
+
         </field>
     </record>
 
@@ -50,7 +96,7 @@
                 <attribute name="optional">hide</attribute>
             </xpath>
             <xpath expr="//field[@name='tag_ids']" position="after">
-                <field name="street_name" optional="show" />
+                <field name="contact_address" optional="show" />
                 <field name="l10n_mx_edi_colony" optional="show" />
                 <field name="no_of_guests" optional="show" string="Occupancy" />
                 <field name="qty_bedroom" optional="show" string="Rooms" />
@@ -71,6 +117,41 @@
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
                 <field name="no_of_guests" string="Num. Guests" readonly="1" />
+                <field name="property_host" />
+                <field name="has_security" />
+                <field name="has_elevator" />
+                <field name="parking_spaces" />
+                <field name="parking_spaces_description" />
+                <field name="has_dishwasher" />
+                <field name="has_washing_machine" />
+                <field name="has_dryer" />
+                <field name="has_sofa_bed" />
+                <field name="has_working_space" />
+                <field name="has_rooftop" />
+                <field name="has_gym" />
+                <field name="has_pool" />
+                <field name="has_air_conditioning" />
+                <field name="has_cable_tv" />
+                <field name="internet_speed_up_mbps" />
+                <field name="internet_speed_down_mbps" />
+                <field name="exit_date" />
+                <field name="ota_description" />
+                <separator />
+                <filter
+                    string="1 Bedroom"
+                    name="no_bedroom_1"
+                    domain="[('qty_bedroom', '=', 1)]"
+                />
+                <filter
+                    string="2 Bedrooms"
+                    name="no_bedroom_2"
+                    domain="[('qty_bedroom', '=', 2)]"
+                />
+                <filter
+                    string="3 Bedrooms"
+                    name="no_bedroom_3"
+                    domain="[('qty_bedroom', '=', 3)]"
+                />
             </xpath>
             <xpath expr="//filter[@name='active']" position="after">
                 <separator />
