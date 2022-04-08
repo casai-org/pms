@@ -8,10 +8,13 @@ from odoo import models, fields
 _log = logging.getLogger(__name__)
 
 
+class ProductTemplate(models.Model):
+    _inherit = "product.template"
+
+    allow_discount = fields.Boolean(string="Allow Discount", default=True)
+
 class ProductProduct(models.Model):
     _inherit = "product.product"
-
-    allow_discount = fields.Boolean(string="Allow Discounts on Sale Order", default=False)
 
     def price_compute(self, price_type):
         result = super().price_compute(price_type)
