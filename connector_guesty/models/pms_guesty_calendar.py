@@ -14,6 +14,7 @@ _log = logging.getLogger(__name__)
 class PmsGuestyCalendar(models.Model):
     _name = "pms.guesty.calendar"
     _description = "Guesty Calendar"
+    _rec_name = "property_id"
 
     listing_id = fields.Char(required=True)
     listing_date = fields.Date(required=True)

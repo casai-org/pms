@@ -147,6 +147,10 @@ class PmsReservation(models.Model):
             self.start, real_stop_date
         )
 
+        _log.info(
+            "Calendar dates: %s", [(x["date"], x["status"]) for x in calendar_dates]
+        )
+
         if any([calendar["status"] != "available" for calendar in calendar_dates]):
             raise ValidationError(_("Dates for this reservation are not available"))
 
