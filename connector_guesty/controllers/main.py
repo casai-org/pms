@@ -9,6 +9,22 @@ from odoo.http import request
 _log = logging.getLogger(__name__)
 
 
+def standardize_request_data(data):
+    """
+    Standardize the request data to be able to use it in the controller.
+    """
+    standard_data = {}
+    if data.get("reservation") and data.get("event"):
+        if data.get("event") in ["reservation.new", "reservation.updated"]:
+            standard_data["reservation"] = data.get("reservation")
+            standard_data["event"] = data.get("event")
+        elif data.get("event") and data.get("event", {}).get("reservation"):
+            standard_data["reservation"] = data.get("event").get("reservation")
+            standard_data["event"] = "reservation.updated"
+
+    return standard_data["reservation"], standard_data["event"]
+
+
 class GuestyController(http.Controller):
     def validate_get_company(self, payload):
         company_id = payload.get("company")
@@ -30,6 +46,21 @@ class GuestyController(http.Controller):
         type="json",
     )
     def reservations_webhook(self, **data):
+        reservation_info, event_name = standardize_request_data(request.jsonrequest)
+        if event_name not in ["reservation.new", "reservation.updated"]:
+            raise ValidationError(_("Invalid event name {}".format(event_name)))
+
+        guesty_listing_id = reservation_info.get("listingId")
+        listing_obj = request.env["pms.guesty.listing"].search(
+            [("external_id", "=", guesty_listing_id)]
+        )
+        _log.info(listing_obj)
+
+    def _reservation_webhook(self, **data):
+        _log.info(request.httprequest.headers)
+        _log.info(request.httprequest)
+        _log.info(dir(request.httprequest))
+        _log.info(request.httprequest.remote_addr)
         try:
             company, backend = self.validate_get_company(data)
             event = data.get("event")
