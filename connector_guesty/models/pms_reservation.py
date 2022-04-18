@@ -135,15 +135,25 @@ class PmsReservation(models.Model):
 
     def action_cancel(self, ignore_push_event=False):
         res = super(PmsReservation, self).action_cancel()
-        if (
-            self.env.company.guesty_backend_id
-            and self.guesty_id
-            and not ignore_push_event
-        ):
+        company = self.property_id.company_id
+        _log.info("Cancelling reservation with company {}".format(company))
+
+        if company.guesty_backend_id and self.guesty_id and not ignore_push_event:
             self.guesty_push_reservation_cancel()
         else:
             _log.info("Ignoring send cancel evento to guesty")
+
+        self.action_cancel_sale_order()
         return res
+
+    def action_cancel_sale_order(self):
+        if self.sale_order_id:
+            _log.info("Reservation has a sale order")
+            if self.sale_order_id.state != "cancel":
+                _log.info("Cancelling sale order {}".format(self.sale_order_id.name))
+                active_reservations = self.sale_order_id.sale_get_active_reservation()
+                if len(active_reservations) == 0:
+                    self.sale_order_id.action_cancel(ignore_push_event=True)
 
     def guesty_check_availability(self):
         if self.stage_id.id == self.env.ref("pms_sale.pms_stage_booked").id:
@@ -179,7 +189,8 @@ class PmsReservation(models.Model):
             "status": "canceled",
             "canceledBy": self.env.user.name,
         }
-        backend = self.env.company.guesty_backend_id
+        company = self.property_id.company_id
+        backend = company.guesty_backend_id
         success, result = backend.call_put_request(
             url_path="reservations/{}".format(self.guesty_id), body=body
         )
@@ -189,7 +200,6 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to cancel reservation"))
 
         self.message_post(body=_("Reservation cancelled successfully on guesty!"))
-        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_reserve(self):
         backend = self.env.company.guesty_backend_id
@@ -375,13 +385,24 @@ class PmsReservation(models.Model):
     def guesty_pull_reservation(self, reservation_info, event_name):
         guesty_listing_id = reservation_info["listingId"]
         _log.info("Pulling reservation for listing {}".format(guesty_listing_id))
-        property_id = (
-            self.env["pms.property"]
-            .sudo()
-            .search([("guesty_id", "=", guesty_listing_id)], limit=1)
-        )
 
-        _log.info("Property {}".format(property_id))
+        listing_obj = self.env["pms.guesty.listing"].search(
+            [("external_id", "=", guesty_listing_id)]
+        )
+        property_id = None
+        if listing_obj:
+            property_id = self.env["pms.property"].search(
+                [("guesty_listing_ids.id", "=", listing_obj.id)]
+            )
+
+        if not property_id:
+            property_id = (
+                self.env["pms.property"]
+                .sudo()
+                .search([("guesty_id", "=", guesty_listing_id)], limit=1)
+            )
+
+        _log.info("Property {}".format(property_id.ref or property_id.id))
 
         if not property_id:
             raise ValidationError(_("Property not found"))
@@ -418,14 +439,13 @@ class PmsReservation(models.Model):
         if not success:
             raise ValidationError(_("Unable to retrieve reservation"))
 
-        # if "status" in reservation_data:
-        #     if reservation_data["status"] == "inquiry":
-        #         return _("Ignore Inquiry Reservation: {}".format(reservation_data["_id"]))
-
         # validate the reservation already exists
         _id, reservation = self.sudo().guesty_parse_reservation(
             reservation_data, backend
         )
+
+        reservation["property_id"] = property_id.id
+
         reservation_id = (
             self.env["pms.reservation"].sudo().search([("guesty_id", "=", _id)])
         )
@@ -437,52 +457,27 @@ class PmsReservation(models.Model):
 
         if reservation_data["status"] in ["canceled", "declined", "expired", "closed"]:
             if reservation_id.stage_id.id != backend.stage_canceled_id.id:
+                _log.info("Canceling reservation {}".format(reservation_id.id))
                 reservation_id.sudo().action_cancel(ignore_push_event=True)
+            else:
+                _log.info("Reservation {} already canceled".format(reservation_id.id))
         elif reservation_data["status"] == "inquiry":
-            if reservation_id.stage_id.id != backend.stage_inquiy_id.id:
+            if reservation_id.stage_id.id != backend.stage_inquiry_id.id:
                 reservation_id.sudo().action_draft(ignore_push_event=True)
+            else:
+                _log.info("Reservation {} already inquiry".format(reservation_id.id))
         elif reservation_data["status"] in ["reserved"]:
             if reservation_id.stage_id.id != backend.stage_reserved_id.id:
+                _log.info("Reservation {} reserved".format(reservation_id.id))
                 reservation_id.sudo().action_book(ignore_push_event=True)
+            else:
+                _log.info("Reservation {} already reserved".format(reservation_id.id))
         elif reservation_data["status"] in ["confirmed"]:
             if reservation_id.stage_id.id != backend.stage_reserved_id.id:
+                _log.info("Reservation {} confirmed".format(reservation_id.id))
                 reservation_id.sudo().action_confirm(ignore_push_event=True)
-
-        return reservation_id
-
-    def __guesty_pull_reservation(self, backend, payload):
-        _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
-        reservation_id = self.sudo().search([("guesty_id", "=", _id)], limit=1)
-
-        context = {"ignore_overlap": True, "ignore_guesty_push": True}
-
-        if not reservation_id:
-            reservation_id = (
-                self.env["pms.reservation"]
-                .sudo()
-                .with_context(context)
-                .create(reservation)
-            )
-        else:
-            str_updated_date = payload.get("lastUpdatedAt")[0:19].replace("T", " ")
-            update_date = datetime.datetime.strptime(
-                str_updated_date, "%Y-%m-%d %H:%M:%S"
-            )
-            last_date = reservation_id.sudo().guesty_last_updated_date
-            if not last_date or update_date > last_date:
-                _log.info("Update reservation: {}".format(reservation_id.guesty_id))
-                reservation_id.sudo().with_context(context).write(reservation)
             else:
-                return _("Ignore Update {} {} - {}").format(_id, update_date, last_date)
-
-        if reservation_id.stage_id.id != backend.stage_inquiry_id.id:
-            invoice_lines = payload.get("money", {}).get("invoiceItems")
-            no_nights = payload.get("nightsCount", 0)
-            status = payload.get("status", "inquiry")
-
-            reservation_id.with_context(context).with_delay().build_so(
-                invoice_lines, no_nights, status, backend
-            )
+                _log.info("Reservation {} already confirmed".format(reservation_id.id))
 
         return reservation_id
 

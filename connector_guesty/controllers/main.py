@@ -51,77 +51,19 @@ class GuestyController(http.Controller):
             raise ValidationError(_("Invalid event name {}".format(event_name)))
 
         guesty_listing_id = reservation_info.get("listingId")
-        listing_obj = (
-            request.env["pms.guesty.listing"]
-            .sudo()
-            .search([("external_id", "=", guesty_listing_id)], limit=1)
+        listing_sudo = request.env["pms.guesty.listing"].sudo()
+        listing_obj = listing_sudo.search(
+            [("external_id", "=", guesty_listing_id)], limit=1
         )
-        _log.info(listing_obj)
 
         if not listing_obj.exists():
             raise ValidationError(_("Listing not found {}".format(guesty_listing_id)))
 
-        request.env["pms.reservation"].with_delay().guesty_pull_reservation(
+        reservation_sudo = request.env["pms.reservation"].sudo()
+        reservation_sudo.with_delay().guesty_pull_reservation(
             reservation_info, event_name
         )
         return {"success": True}
-
-    def _resevations_webhook(self, **data):
-        if data.get("event") and data.get("event").get("reservation"):
-            version = "1.0"
-        else:
-            version = "2.0"
-
-        if version == "1.0":
-            reservation = data.get("event").get("reservation")
-        else:
-            reservation = request.jsonrequest.get("reservation")
-
-        if not reservation:
-            raise ValidationError(_("Reservation data not found!"))
-
-        property_id = (
-            request.env["pms.property"]
-            .sudo()
-            .search([("guesty_id", "=", reservation.get("_id"))])
-        )
-        company_id = property_id.company_id
-
-        if not company_id:
-            raise ValidationError(_("No company was found"))
-
-        backend = company_id.guesty_backend_id
-        if not backend:
-            raise ValidationError(_("No backend was found"))
-
-        success, res = backend.sudo().call_get_request(
-            url_path="reservations/{}".format(reservation.get("_id")),
-            params={
-                "fields": " ".join(
-                    [
-                        "status",
-                        "checkIn",
-                        "checkOut",
-                        "listingId",
-                        "guestId",
-                        "listing.nickname",
-                        "lastUpdatedAt",
-                        "money",
-                        "nightsCount",
-                        "plannedArrival",
-                        "plannedDeparture",
-                    ]
-                )
-            },
-        )
-
-        if success:
-            request.env["pms.reservation"].with_company(
-                company_id
-            ).with_delay().guesty_pull_reservation(backend, res)
-            return {"success": True}
-        else:
-            raise ValidationError(str(res))
 
     @http.route(
         "/guesty/listing_webhook",
