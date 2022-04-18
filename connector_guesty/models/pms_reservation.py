@@ -43,97 +43,104 @@ class PmsReservation(models.Model):
 
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
-        if self.env.context.get("ignore_overlap"):
-            return
+        # if self.env.context.get("ignore_overlap"):
+        #     return
+        #
+        # # noinspection PyProtectedMember
+        # return super(PmsReservation, self)._check_no_of_reservations()
+        return True
 
-        # noinspection PyProtectedMember
-        return super(PmsReservation, self)._check_no_of_reservations()
+    # @api.model
+    # def create(self, values):
+    #     res = super(PmsReservation, self).create(values)
+    #     if self.env.company.guesty_backend_id and not res.property_id.guesty_id:
+    #         raise ValidationError(_("The property is not linked to Guesty."))
+    #
+    #     # Set the automated workflow to create and validate the invoice
+    #     if (
+    #         self.env.company.guesty_backend_id
+    #         and res.sale_order_id
+    #         and not res.sale_order_id.workflow_process_id
+    #     ):
+    #         res.sale_order_id.with_context({"ignore_guesty_push": True}).write(
+    #             {
+    #                 "workflow_process_id": self.env.ref(
+    #                     "sale_automatic_workflow.automatic_validation"
+    #                 ).id
+    #             }
+    #         )
+    #     if self.env.company.guesty_backend_id and not self.env.context.get(
+    #         "ignore_guesty_push", False
+    #     ):
+    #         res.guesty_push_reservation()
+    #     return res
 
-    @api.model
-    def create(self, values):
-        res = super(PmsReservation, self).create(values)
-        if self.env.company.guesty_backend_id and not res.property_id.guesty_id:
-            raise ValidationError(_("The property is not linked to Guesty."))
+    # def write(self, values):
+    #     res = super(PmsReservation, self).write(values)
+    #     _black_list = ["workflow_process_id", "analytic_account_id"]
+    #     _fields = [a for a in values.keys() if a not in _black_list]
+    #
+    #     if (
+    #         self.env.company.guesty_backend_id
+    #         and self.guesty_id
+    #         and not self.env.context.get("ignore_guesty_push", False)
+    #         and len(_fields) > 0
+    #     ):
+    #         self.with_delay().guesty_push_reservation_update()
+    #     return res
 
-        # Set the automated workflow to create and validate the invoice
-        if (
-            self.env.company.guesty_backend_id
-            and res.sale_order_id
-            and not res.sale_order_id.workflow_process_id
-        ):
-            res.sale_order_id.with_context({"ignore_guesty_push": True}).write(
-                {
-                    "workflow_process_id": self.env.ref(
-                        "sale_automatic_workflow.automatic_validation"
-                    ).id
-                }
+    def action_draft(self, ignore_push_event=False):
+        if self.stage_id.id != self.env.company.guesty_backend_id.stage_inquiry_id.id:
+            self.write(
+                {"stage_id": self.env.company.guesty_backend_id.stage_inquiry_id.id}
             )
-        if self.env.company.guesty_backend_id and not self.env.context.get(
-            "ignore_guesty_push", False
-        ):
-            res.guesty_push_reservation()
-        return res
+            if (
+                self.env.company.guesty_backend_id
+                and self.guesty_id
+                and not ignore_push_event
+            ):
+                rs = self.guesty_push_reservation_draft()
+                self.message_post(
+                    body=_(
+                        "Reservation was updated on guesty :: {}".format(rs["status"])
+                    )
+                )
 
-    def write(self, values):
-        res = super(PmsReservation, self).write(values)
-        _black_list = ["workflow_process_id", "analytic_account_id"]
-        _fields = [a for a in values.keys() if a not in _black_list]
-
-        if (
-            self.env.company.guesty_backend_id
-            and self.guesty_id
-            and not self.env.context.get("ignore_guesty_push", False)
-            and len(_fields) > 0
-        ):
-            self.with_delay().guesty_push_reservation_update()
-        return res
-
-    def action_book(self):
-        if (
-            self.env.company.guesty_backend_id
-            and self.stage_id.id
-            != self.env.company.guesty_backend_id.stage_inquiry_id.id
-        ):
-            return False
-
+    def action_book(self, ignore_push_event=False):
         res = super(PmsReservation, self).action_book()
-        if self.env.company.guesty_backend_id and not self.env.context.get(
-            "ignore_guesty_push", False
-        ):
-            if not res:
-                raise UserError(_("Something went wrong"))
+        if self.env.company.guesty_backend_id and not ignore_push_event:
             self.guesty_check_availability()
             # Send to Guesty
             self.guesty_push_reservation_reserve()
         return res
 
-    def action_confirm(self):
+    def action_confirm(self, ignore_push_event=False):
         # If the reservation is already confirmed, we don´t do more
         if self.stage_id.id == self.env.company.guesty_backend_id.stage_confirmed_id.id:
             return None
 
         res = super(PmsReservation, self).action_confirm()
 
-        if self.env.company.guesty_backend_id and not self.env.context.get(
-            "ignore_guesty_push", False
-        ):
-            if not res:
-                raise UserError(_("Something went wrong"))
+        if self.env.company.guesty_backend_id and not ignore_push_event:
             status = self.guesty_get_status()
             if status not in ["inquiry", "reserved"]:
-                raise ValidationError(_("Unable to confirm reservation"))
+                raise ValidationError(
+                    _("Unable to confirm reservation, status is {}".format(status))
+                )
             # Send to guesty
             self.guesty_push_reservation_confirm()
         return res
 
-    def action_cancel(self):
+    def action_cancel(self, ignore_push_event=False):
         res = super(PmsReservation, self).action_cancel()
         if (
             self.env.company.guesty_backend_id
             and self.guesty_id
-            and not self.env.context.get("ignore_guesty_push", False)
+            and not ignore_push_event
         ):
             self.guesty_push_reservation_cancel()
+        else:
+            _log.info("Ignoring send cancel evento to guesty")
         return res
 
     def guesty_check_availability(self):
@@ -183,12 +190,15 @@ class PmsReservation(models.Model):
 
     def guesty_push_reservation_reserve(self):
         backend = self.env.company.guesty_backend_id
-        body = self.parse_push_reservation_data(backend)
-        body["status"] = "reserved"
+        if self.guesty_id:
+            body = self.parse_push_reservation_data(backend)
+            body["status"] = "reserved"
 
-        success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id), body=body
-        )
+            success, result = backend.call_put_request(
+                url_path="reservations/{}".format(self.guesty_id), body=body
+            )
+        else:
+            success, result = self.guesty_push_reservation(default_status="reserved")
 
         if not success:
             _log.error(result)
@@ -209,6 +219,20 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to confirm reservation : {}".format(result)))
 
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
+
+    def guesty_push_reservation_draft(self):
+        backend = self.env.company.guesty_backend_id
+        body = self.parse_push_reservation_data(backend)
+        body["status"] = "inquiry"
+
+        success, result = backend.call_put_request(
+            url_path="reservations/{}".format(self.guesty_id), body=body
+        )
+
+        if not success:
+            raise UserError(_("Unable to reset reservation : {}".format(result)))
+
+        return result
 
     def guesty_push_reservation_update(self):
         backend = self.env.company.guesty_backend_id
@@ -248,7 +272,7 @@ class PmsReservation(models.Model):
         else:
             _log.error(result)
 
-    def guesty_push_reservation(self):
+    def guesty_push_reservation(self, default_status="inquiry"):
         backend = self.env.company.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend defined"))
@@ -256,7 +280,7 @@ class PmsReservation(models.Model):
         if self.sale_order_id:
             # create a reservation on guesty
             body = self.parse_push_reservation_data(backend)
-            body["status"] = "inquiry"
+            body["status"] = default_status
 
             success, res = backend.call_post_request(url_path="reservations", body=body)
             if not success:
@@ -267,7 +291,8 @@ class PmsReservation(models.Model):
                 raise UserError(_("Unable to send to guesty") + ": " + str(res))
 
             guesty_id = res.get("_id")
-            self.with_context(ignore_guesty_push=True).write({"guesty_id": guesty_id})
+            self.write({"guesty_id": guesty_id})
+            return success, res
         else:
             # retrieve calendars
             # todo: Fix Calendar
@@ -310,7 +335,85 @@ class PmsReservation(models.Model):
                     },
                 )
 
-    def guesty_pull_reservation(self, backend, payload):
+    def guesty_pull_reservation(self, reservation_info, event_name):
+        guesty_listing_id = reservation_info["listingId"]
+        _log.info("Pulling reservation for listing {}".format(guesty_listing_id))
+        property_id = (
+            self.env["pms.property"]
+            .sudo()
+            .search([("guesty_id", "=", guesty_listing_id)], limit=1)
+        )
+
+        _log.info("Property {}".format(property_id))
+
+        if not property_id:
+            raise ValidationError(_("Property not found"))
+
+        company_id = property_id.company_id
+        if not company_id:
+            raise ValidationError(
+                _("Company not found on listing {}".format(guesty_listing_id))
+            )
+
+        backend = company_id.guesty_backend_id
+        if not backend:
+            raise ValidationError(_("No backend defined"))
+
+        success, reservation_data = backend.sudo().call_get_request(
+            url_path="reservations/{}".format(reservation_info["_id"]),
+            params={
+                "fields": " ".join(
+                    [
+                        "status",
+                        "checkIn",
+                        "checkOut",
+                        "listingId",
+                        "guestId",
+                        "listing.nickname",
+                        "lastUpdatedAt",
+                        "money",
+                        "nightsCount",
+                    ]
+                )
+            },
+        )
+
+        if not success:
+            raise ValidationError(_("Unable to retrieve reservation"))
+
+        # if "status" in reservation_data:
+        #     if reservation_data["status"] == "inquiry":
+        #         return _("Ignore Inquiry Reservation: {}".format(reservation_data["_id"]))
+
+        # validate the reservation already exists
+        _id, reservation = self.sudo().guesty_parse_reservation(
+            reservation_data, backend
+        )
+        reservation_id = (
+            self.env["pms.reservation"].sudo().search([("guesty_id", "=", _id)])
+        )
+
+        if reservation_id.exists():
+            reservation_id.write(reservation)
+        else:
+            reservation_id = self.env["pms.reservation"].sudo().create(reservation)
+
+        if reservation_data["status"] in ["canceled", "declined", "expired", "closed"]:
+            if reservation_id.stage_id.id != backend.stage_canceled_id.id:
+                reservation_id.sudo().action_cancel(ignore_push_event=True)
+        elif reservation_data["status"] == "inquiry":
+            if reservation_id.stage_id.id != backend.stage_inquiy_id.id:
+                reservation_id.sudo().action_draft(ignore_push_event=True)
+        elif reservation_data["status"] in ["reserved"]:
+            if reservation_id.stage_id.id != backend.stage_reserved_id.id:
+                reservation_id.sudo().action_book(ignore_push_event=True)
+        elif reservation_data["status"] in ["confirmed"]:
+            if reservation_id.stage_id.id != backend.stage_reserved_id.id:
+                reservation_id.sudo().action_confirm(ignore_push_event=True)
+
+        return reservation_id
+
+    def __guesty_pull_reservation(self, backend, payload):
         _id, reservation = self.sudo().guesty_parse_reservation(payload, backend)
         reservation_id = self.sudo().search([("guesty_id", "=", _id)], limit=1)
 

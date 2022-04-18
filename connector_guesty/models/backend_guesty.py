@@ -395,6 +395,13 @@ class BackendGuesty(models.Model):
             else:
                 break
 
+        for property_id in property_ids.filtered(lambda x: x.guesty_id):
+            listing_id = self.env["pms.guesty.listing"].search(
+                [("external_id", "=", property_id.guesty_id)], limit=1
+            )
+            if listing_id:
+                property_id.guesty_listing_ids += listing_id
+
         for property_id in property_ids.filtered(lambda x: not x.guesty_id):
             record_match = self.env["pms.guesty.listing"].search(
                 [("name", "=", property_id.ref)]

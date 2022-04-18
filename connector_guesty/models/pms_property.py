@@ -29,7 +29,7 @@ class PmsProperty(models.Model):
         string="Days to quotation expiration", default=1
     )
 
-    guesty_listing_ids = fields.Many2one("pms.guesty.listing", string="Listing")
+    guesty_listing_ids = fields.Many2many("pms.guesty.listing", string="Listing")
 
     @api.constrains("days_quotation_expiration")
     def check_days_quotation_expiration(self):

@@ -9,6 +9,22 @@ from odoo.http import request
 _log = logging.getLogger(__name__)
 
 
+def standardize_request_data(data):
+    """
+    Standardize the request data to be able to use it in the controller.
+    """
+    standard_data = {}
+    if data.get("reservation") and data.get("event"):
+        if data.get("event") in ["reservation.new", "reservation.updated"]:
+            standard_data["reservation"] = data.get("reservation")
+            standard_data["event"] = data.get("event")
+        elif data.get("event") and data.get("event", {}).get("reservation"):
+            standard_data["reservation"] = data.get("event").get("reservation")
+            standard_data["event"] = "reservation.updated"
+
+    return standard_data["reservation"], standard_data["event"]
+
+
 class GuestyController(http.Controller):
     def validate_get_company(self, payload):
         company_id = payload.get("company")
@@ -30,6 +46,27 @@ class GuestyController(http.Controller):
         type="json",
     )
     def reservations_webhook(self, **data):
+        reservation_info, event_name = standardize_request_data(request.jsonrequest)
+        if event_name not in ["reservation.new", "reservation.updated"]:
+            raise ValidationError(_("Invalid event name {}".format(event_name)))
+
+        guesty_listing_id = reservation_info.get("listingId")
+        listing_obj = (
+            request.env["pms.guesty.listing"]
+            .sudo()
+            .search([("external_id", "=", guesty_listing_id)], limit=1)
+        )
+        _log.info(listing_obj)
+
+        if not listing_obj.exists():
+            raise ValidationError(_("Listing not found {}".format(guesty_listing_id)))
+
+        request.env["pms.reservation"].with_delay().guesty_pull_reservation(
+            reservation_info, event_name
+        )
+        return {"success": True}
+
+    def _resevations_webhook(self, **data):
         if data.get("event") and data.get("event").get("reservation"):
             version = "1.0"
         else:

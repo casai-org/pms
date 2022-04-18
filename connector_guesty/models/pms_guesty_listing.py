@@ -18,6 +18,10 @@ class PmsGuestyListing(models.Model):
     external_id = fields.Char(string="External ID", required=True)
     guesty_account_id = fields.Char(string="Guesty Account ID", required=True)
 
+    _sql_constraints = [
+        ("unique_external_id", "unique(external_id)", "Listing already exists")
+    ]
+
     def guesty_pull_listing(self, payload):
         _id = payload.get("_id")
         listing_id = self.search([("external_id", "=", _id)], limit=1)
