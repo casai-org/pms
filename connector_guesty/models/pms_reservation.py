@@ -44,51 +44,8 @@ class PmsReservation(models.Model):
 
     @api.constrains("property_id", "stage_id", "start", "stop")
     def _check_no_of_reservations(self):
-        # if self.env.context.get("ignore_overlap"):
-        #     return
-        #
-        # # noinspection PyProtectedMember
-        # return super(PmsReservation, self)._check_no_of_reservations()
+        # ignore overlaps for reservations, it was manager by guesty.
         return True
-
-    # @api.model
-    # def create(self, values):
-    #     res = super(PmsReservation, self).create(values)
-    #     if self.env.company.guesty_backend_id and not res.property_id.guesty_id:
-    #         raise ValidationError(_("The property is not linked to Guesty."))
-    #
-    #     # Set the automated workflow to create and validate the invoice
-    #     if (
-    #         self.env.company.guesty_backend_id
-    #         and res.sale_order_id
-    #         and not res.sale_order_id.workflow_process_id
-    #     ):
-    #         res.sale_order_id.with_context({"ignore_guesty_push": True}).write(
-    #             {
-    #                 "workflow_process_id": self.env.ref(
-    #                     "sale_automatic_workflow.automatic_validation"
-    #                 ).id
-    #             }
-    #         )
-    #     if self.env.company.guesty_backend_id and not self.env.context.get(
-    #         "ignore_guesty_push", False
-    #     ):
-    #         res.guesty_push_reservation()
-    #     return res
-
-    # def write(self, values):
-    #     res = super(PmsReservation, self).write(values)
-    #     _black_list = ["workflow_process_id", "analytic_account_id"]
-    #     _fields = [a for a in values.keys() if a not in _black_list]
-    #
-    #     if (
-    #         self.env.company.guesty_backend_id
-    #         and self.guesty_id
-    #         and not self.env.context.get("ignore_guesty_push", False)
-    #         and len(_fields) > 0
-    #     ):
-    #         self.with_delay().guesty_push_reservation_update()
-    #     return res
 
     def action_draft(self, ignore_push_event=False):
         if self.stage_id.id != self.env.company.guesty_backend_id.stage_inquiry_id.id:
