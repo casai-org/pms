@@ -324,6 +324,7 @@ class BackendGuesty(models.Model):
 
         url = "{}/{}".format(self.api_url, url_path)
         try:
+            _log.info("Calling GET request to {}".format(url))
             result = requests.get(
                 url=url, params=params, auth=(self.api_key, self.api_secret)
             )
@@ -339,6 +340,7 @@ class BackendGuesty(models.Model):
 
     def call_post_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
+        _log.info("Calling POST request to {}".format(url))
         result = requests.post(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:
@@ -349,6 +351,7 @@ class BackendGuesty(models.Model):
 
     def call_put_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
+        _log.info("Calling PUT request to {}".format(url))
         result = requests.put(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:

@@ -109,6 +109,12 @@ class PmsReservation(models.Model):
                 )
 
     def action_book(self, ignore_push_event=False):
+        if self.stage_id.id in [
+            self.env.company.guesty_backend_id.stage_reserved_id.id,
+            self.env.company.guesty_backend_id.stage_confirmed_id.id,
+        ]:
+            return None
+
         res = super(PmsReservation, self).action_book()
         if self.env.company.guesty_backend_id and not ignore_push_event:
             self.guesty_check_availability()
@@ -142,8 +148,6 @@ class PmsReservation(models.Model):
             self.guesty_push_reservation_cancel()
         else:
             _log.info("Ignoring send cancel evento to guesty")
-
-        self.action_cancel_sale_order()
         return res
 
     def action_cancel_sale_order(self):
@@ -153,7 +157,9 @@ class PmsReservation(models.Model):
                 _log.info("Cancelling sale order {}".format(self.sale_order_id.name))
                 active_reservations = self.sale_order_id.sale_get_active_reservation()
                 if len(active_reservations) == 0:
-                    self.sale_order_id.action_cancel(ignore_push_event=True)
+                    self.sale_order_id.action_cancel(
+                        ignore_push_event=True, cancel_reservation=False
+                    )
 
     def guesty_check_availability(self):
         if self.stage_id.id == self.env.ref("pms_sale.pms_stage_booked").id:
@@ -218,7 +224,6 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to reserve reservation"))
 
         self.message_post(body=_("Reservation reserved successfully on guesty!"))
-        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_confirm(self):
         backend = self.env.company.guesty_backend_id
@@ -233,7 +238,6 @@ class PmsReservation(models.Model):
             raise UserError(_("Unable to confirm reservation : {}".format(result)))
 
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
-        self.sudo().with_delay().compare_updated_result(result)
 
     def guesty_push_reservation_draft(self):
         backend = self.env.company.guesty_backend_id
@@ -268,8 +272,6 @@ class PmsReservation(models.Model):
         self.with_context(context).write(
             {"guesty_last_updated_date": datetime.datetime.now()}
         )
-
-        self.sudo().with_delay().compare_updated_result(res)
 
     def compare_updated_result(self, result):
         if "money" in result:
@@ -428,6 +430,7 @@ class PmsReservation(models.Model):
                         "listingId",
                         "guestId",
                         "listing.nickname",
+                        "createdAt",
                         "lastUpdatedAt",
                         "money",
                         "nightsCount",
@@ -459,6 +462,7 @@ class PmsReservation(models.Model):
             if reservation_id.stage_id.id != backend.stage_canceled_id.id:
                 _log.info("Canceling reservation {}".format(reservation_id.id))
                 reservation_id.sudo().action_cancel(ignore_push_event=True)
+                reservation_id.action_cancel_sale_order()
             else:
                 _log.info("Reservation {} already canceled".format(reservation_id.id))
         elif reservation_data["status"] == "inquiry":
@@ -473,11 +477,15 @@ class PmsReservation(models.Model):
             else:
                 _log.info("Reservation {} already reserved".format(reservation_id.id))
         elif reservation_data["status"] in ["confirmed"]:
-            if reservation_id.stage_id.id != backend.stage_reserved_id.id:
+            if reservation_id.stage_id.id != backend.stage_confirmed_id.id:
                 _log.info("Reservation {} confirmed".format(reservation_id.id))
                 reservation_id.sudo().action_confirm(ignore_push_event=True)
             else:
                 _log.info("Reservation {} already confirmed".format(reservation_id.id))
+            try:
+                reservation_id.build_so_from_reservation(reservation_data)
+            except Exception as ex:
+                _log.error(ex)
 
         return reservation_id
 
@@ -678,6 +686,57 @@ class PmsReservation(models.Model):
                 body["money"]["invoiceItems"] = []
 
         return body
+
+    def build_so_from_reservation(self, reservation_data):
+        _log.info(reservation_data)
+        guesty_currency = reservation_data["money"]["currency"]
+        _log.info("Saving in currency %s", guesty_currency)
+
+        currency_id = (
+            self.env["res.currency"].sudo().search([("name", "=", guesty_currency)])
+        )
+
+        if not currency_id:
+            raise ValidationError(_("Currency: {} Not found").format(guesty_currency))
+
+        created_at = datetime.datetime.strptime(
+            reservation_data["createdAt"], "%Y-%m-%dT%H:%M:%S.%fZ"
+        )
+        so_payload = {
+            "partner_id": self.partner_id.id,
+            "date_order": created_at,
+        }
+
+        if not self.sale_order_id:
+            price_list = (
+                self.env["product.pricelist"]
+                .sudo()
+                .search([("currency_id", "=", currency_id.id)])
+            )
+
+            if not price_list:
+                raise ValidationError(
+                    _("No pricelist found for {}").format(guesty_currency)
+                )
+
+            so_payload["pricelist_id"] = price_list.id
+            so = self.env["sale.order"].sudo().create(so_payload)
+
+            self.sudo().write({"sale_order_id": so.id})
+
+        else:
+            so = self.sale_order_id
+            so.write(so_payload)
+
+        if so.state not in ["draft", "sent", "approved"]:
+            raise ValidationError(
+                _("Unable to build a sale order, status is {}").format(so.state)
+            )
+
+        guesty_invoice_items = reservation_data["money"]["invoiceItems"]
+        no_nights = reservation_data["nightsCount"]
+        self.build_lines(guesty_invoice_items, so, no_nights, currency_id)
+        so.action_confirm()
 
     def build_so(self, guesty_invoice_items, no_nights, status, backend):
         # Create SO based on reservation

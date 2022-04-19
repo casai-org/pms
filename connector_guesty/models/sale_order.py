@@ -62,9 +62,10 @@ class SaleOrder(models.Model):
         reservation_id.action_draft()
         return super().action_draft()
 
-    def action_cancel(self, ignore_push_event=False):
+    def action_cancel(self, ignore_push_event=False, cancel_reservation=True):
         reservation_ids = self.sale_get_active_reservation()
-        reservation_ids.action_cancel(ignore_push_event=ignore_push_event)
+        if reservation_ids and cancel_reservation:
+            reservation_ids.action_cancel(ignore_push_event=ignore_push_event)
         return super().action_cancel()
 
     def action_quotation_send(self):
