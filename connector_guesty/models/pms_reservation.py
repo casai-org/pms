@@ -7,7 +7,6 @@ import pytz
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
-from odoo.tools import float_compare
 
 _log = logging.getLogger(__name__)
 
@@ -48,16 +47,13 @@ class PmsReservation(models.Model):
         return True
 
     def action_draft(self, ignore_push_event=False):
+        company = self.property_id.company_id or self.env.company
         if self.stage_id.id != self.env.company.guesty_backend_id.stage_inquiry_id.id:
             self.write(
                 {"stage_id": self.env.company.guesty_backend_id.stage_inquiry_id.id}
             )
 
-            if (
-                self.env.company.guesty_backend_id
-                and self.guesty_id
-                and not ignore_push_event
-            ):
+            if company.guesty_backend_id and self.guesty_id and not ignore_push_event:
                 rs = self.guesty_push_reservation_draft()
                 self.message_post(
                     body=_(
@@ -197,7 +193,8 @@ class PmsReservation(models.Model):
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
 
     def guesty_push_reservation_draft(self):
-        backend = self.env.company.guesty_backend_id
+        company = self.property_id.company_id or self.env.company
+        backend = company.guesty_backend_id
         body = self.parse_push_reservation_data(backend)
         body["status"] = "inquiry"
 
@@ -229,33 +226,6 @@ class PmsReservation(models.Model):
         self.with_context(context).write(
             {"guesty_last_updated_date": datetime.datetime.now()}
         )
-
-    def compare_updated_result(self, result):
-        if "money" in result:
-            total_amount = result["money"]["netIncome"]
-            currency = result["money"]["currency"]
-
-            currency_id = (
-                self.env["res.currency"].sudo().search([("name", "=", currency)])
-            )
-
-            if currency_id:
-                sale_amount = self.sale_order_id.amount_total
-                real_amount = currency_id._convert(
-                    total_amount,
-                    self.sale_order_id.currency_id,
-                    self.env.company,
-                    self.sale_order_id.date_order,
-                )
-                compare_values = float_compare(real_amount, sale_amount, 2)
-                if compare_values != 0:
-                    raise ValidationError(
-                        _("Amount difference {} vs {} - {}").format(
-                            round(real_amount, 2),
-                            self.sale_order_id.amount_total,
-                            self.guesty_id,
-                        )
-                    )
 
     def guesty_push_payment(self):
         backend = self.env.company.guesty_backend_id
@@ -535,7 +505,7 @@ class PmsReservation(models.Model):
             lambda s: s.is_guesty_price
         )
 
-        customer = backend.guesty_search_create_customer(self.partner_id)
+        # customer = backend.guesty_search_create_customer(self.partner_id)
 
         utc = pytz.UTC
         tz = pytz.timezone(self.property_id.tz or backend.timezone)
@@ -544,13 +514,26 @@ class PmsReservation(models.Model):
 
         guesty_currency = guesty_listing_price.currency_id or backend.currency_id
 
+        guest_node = {
+            "email": self.partner_id.email,
+            "hometown": self.partner_id.city,
+            "fullName": self.partner_id.name,
+        }
+
+        if self.partner_id.phone:
+            guest_node["phone"] = self.partner_id.phone
+
+        if self.partner_id.guesty_ids:
+            for guest in self.partner_id.guesty_ids:
+                guest_node["_id"] = guest.guesty_id
+                break
+
         body = {
             "listingId": self.property_id.guesty_id,
             "checkInDateLocalized": checkin_localized.strftime("%Y-%m-%d"),
             "checkOutDateLocalized": checkout_localized.strftime("%Y-%m-%d"),
             "plannedArrival": checkin_localized.strftime("%H:%M"),
             "plannedDeparture": checkout_localized.strftime("%H:%M"),
-            "guestId": customer.guesty_id,
             "money": {"invoiceItems": []},
         }
 
@@ -561,21 +544,20 @@ class PmsReservation(models.Model):
             fare_acc_amount = (
                 reservation_line.price_unit * reservation_line.product_uom_qty
             )
-            fare_accomodation = self.sale_order_id.currency_id._convert(
+            fare_accommodation = self.sale_order_id.currency_id._convert(
                 fare_acc_amount,
                 guesty_currency,
                 self.sale_order_id.company_id,
                 self.sale_order_id.date_order,
             )
             body["money"] = {
-                "fareAccommodation": fare_accomodation,
+                "fareAccommodation": fare_accommodation,
                 "currency": guesty_currency.name,
             }
 
             if reservation_line.discount != 0:
-                # discount_amount = fare_accomodation / 100.0 * reservation_line.discount
-                discount_amount = fare_accomodation - (
-                    fare_accomodation * (1.0 - reservation_line.discount / 100.0)
+                discount_amount = fare_accommodation - (
+                    fare_accommodation * (1.0 - reservation_line.discount / 100.0)
                 )
                 if "invoiceItems" not in body["money"]:
                     body["money"]["invoiceItems"] = []
