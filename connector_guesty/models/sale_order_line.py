@@ -16,7 +16,7 @@ class SaleOrderLine(models.Model):
     guesty_second_identifier = fields.Char()
     allow_discount = fields.Boolean(default=False)
 
-    @api.onchange('product_id')
+    @api.onchange("product_id")
     def _compute_allow_discount(self):
         for record in self:
             if record.product_id:

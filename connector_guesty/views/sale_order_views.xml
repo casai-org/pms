@@ -90,9 +90,15 @@
                     class="btn btn-warning"
                 />
             </xpath>
-            <xpath expr="//page[@name='order_lines']/field[@name='order_line']/tree/field[@name='discount']" position="replace">
-                <field name="allow_discount" invisible="1"/>
-                <field name="discount" attrs="{'readonly': ['|', ('allow_discount', '=', False), ('state', 'in', ['waiting_approval', 'approved'])]}" />
+            <xpath
+                expr="//page[@name='order_lines']/field[@name='order_line']/tree/field[@name='discount']"
+                position="replace"
+            >
+                <field name="allow_discount" invisible="1" />
+                <field
+                    name="discount"
+                    attrs="{'readonly': ['|', ('allow_discount', '=', False), ('state', 'in', ['waiting_approval', 'approved'])]}"
+                />
             </xpath>
         </field>
     </record>
