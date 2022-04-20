@@ -143,6 +143,10 @@ class BackendGuesty(models.Model):
                 "fullName": partner.name,
                 "email": partner.email,
             }
+
+            if partner.phone or partner.mobile:
+                body["phone"] = partner.phone or partner.mobile
+
             success, res = self.call_post_request(url_path="guests", body=body)
 
             if not success:
@@ -330,6 +334,7 @@ class BackendGuesty(models.Model):
             )
 
             if result.status_code in success_codes:
+                _log.info(result.content)
                 return True, result.json()
 
             _log.error(result.content)
