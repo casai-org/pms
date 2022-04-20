@@ -18,6 +18,7 @@
         "views/pms_property.xml",
         "views/pms_property_reservation.xml",
         "views/pms_reservation.xml",
+        "views/pms_guesty_calendar.xml",
         "views/pms_guesty_calendar_wizard.xml",
         "views/res_partner.xml",
         "views/sale_order_views.xml",
