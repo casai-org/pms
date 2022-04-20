@@ -29,6 +29,7 @@ class PmsProperty(models.Model):
         string="Days to quotation expiration", default=1
     )
 
+    guesty_listing_ids = fields.Many2many("pms.guesty.listing", string="Listing")
     property_host = fields.Char(string="Host")
     has_security = fields.Boolean(string="Has security")
     has_elevator = fields.Boolean(string="Has elevator")
@@ -90,6 +91,13 @@ class PmsProperty(models.Model):
     @api.onchange("days_quotation_expiration")
     def _onchange_days_quotation_expiration(self):
         self.check_days_quotation_expiration()
+
+    @api.onchange("guesty_listing_ids")
+    def onchange_guesty_listing_ids(self):
+        if self.guesty_listing_ids:
+            for record in self.guesty_listing_ids:
+                self.guesty_id = record.external_id
+                break
 
     def action_guesty_push_property(self):
         self.with_delay().guesty_push_property()
