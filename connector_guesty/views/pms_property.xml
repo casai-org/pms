@@ -225,6 +225,7 @@
     <record id="view_guesty_pms_property_kanban" model="ir.ui.view">
         <field name="name">pms.property.kanban</field>
         <field name="model">pms.property</field>
+        <field name="priority">199</field>
         <field name="inherit_id" ref="pms_base.view_pms_property_kanban" />
         <field name="arch" type="xml">
             <xpath expr="//kanban/templates/t/div/div/img" position="replace">
