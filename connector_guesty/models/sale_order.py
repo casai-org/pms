@@ -68,6 +68,13 @@ class SaleOrder(models.Model):
             reservation_ids.action_cancel(ignore_push_event=ignore_push_event)
         return super().action_cancel()
 
+    def action_approve(self, ignore_push_event=False):
+        if not ignore_push_event:
+            reservation_ids = self.sale_get_active_reservation()
+            if reservation_ids:
+                reservation_ids.guesty_push_reservation()
+        return super().action_cancel()
+
     def action_quotation_send(self):
         _log.info("================= Sending Email =================")
         rs = super().action_quotation_send()
