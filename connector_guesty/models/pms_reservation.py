@@ -222,7 +222,7 @@ class PmsReservation(models.Model):
             _log.error(result)
 
     def guesty_push_reservation(
-        self, default_status="inquiry", canceled_by=None, include_body=True
+        self, default_status=None, canceled_by=None, include_body=True
     ):
         company = self.property_id.company_id or self.env.company
         backend = company.guesty_backend_id
@@ -235,7 +235,9 @@ class PmsReservation(models.Model):
         else:
             body = {}
 
-        body["status"] = default_status
+        if default_status:
+            body["status"] = default_status
+
         if canceled_by:
             body["canceledBy"] = canceled_by
 
