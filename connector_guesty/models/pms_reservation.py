@@ -115,7 +115,7 @@ class PmsReservation(models.Model):
 
     def action_cancel(self, ignore_push_event=False):
         res = super(PmsReservation, self).action_cancel()
-        company = self.property_id.company_id
+        company = self.property_id.company_id or self.env.company
         _log.info("Cancelling reservation with company {}".format(company))
 
         if company.guesty_backend_id and self.guesty_id and not ignore_push_event:
@@ -165,14 +165,10 @@ class PmsReservation(models.Model):
             raise ValidationError(_("Unable to verify reservation"))
 
     def guesty_push_reservation_cancel(self):
-        body = {
-            "status": "canceled",
-            "canceledBy": self.env.user.name,
-        }
-        company = self.property_id.company_id
-        backend = company.guesty_backend_id
-        success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id), body=body
+        success, result = self.guesty_push_reservation(
+            default_status="canceled",
+            canceled_by=self.env.user.name,
+            include_body=False,
         )
 
         if not success:
@@ -190,13 +186,7 @@ class PmsReservation(models.Model):
             raise ValidationError(_("Unable to reserve reservation"))
 
     def guesty_push_reservation_confirm(self):
-        backend = self.env.company.guesty_backend_id
-        body = self.parse_push_reservation_data(backend)
-        body["status"] = "confirmed"
-
-        success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id), body=body
-        )
+        success, result = self.guesty_push_reservation(default_status="confirmed")
 
         if not success:
             raise UserError(_("Unable to confirm reservation : {}".format(result)))
@@ -204,39 +194,11 @@ class PmsReservation(models.Model):
         self.message_post(body=_("Reservation confirmed successfully on guesty!"))
 
     def guesty_push_reservation_draft(self):
-        company = self.property_id.company_id or self.env.company
-        backend = company.guesty_backend_id
-        body = self.parse_push_reservation_data(backend)
-        body["status"] = "inquiry"
-
-        success, result = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id), body=body
-        )
-
+        success, result = self.guesty_push_reservation(default_status="inquiry")
         if not success:
             raise UserError(_("Unable to reset reservation : {}".format(result)))
 
         return result
-
-    def guesty_push_reservation_update(self, state=None):
-        backend = self.env.company.guesty_backend_id
-        if not backend:
-            raise ValidationError(_("No backend defined"))
-
-        body = self.parse_push_reservation_data(backend)
-        if state:
-            body["status"] = state
-
-        success, res = backend.call_put_request(
-            url_path="reservations/{}".format(self.guesty_id), body=body
-        )
-        if not success:
-            raise UserError(_("Unable to send to guesty") + str(res))
-
-        context = {"ignore_overlap": True, "ignore_guesty_push": True}
-        self.with_context(context).write(
-            {"guesty_last_updated_date": datetime.datetime.now()}
-        )
 
     def guesty_push_payment(self):
         backend = self.env.company.guesty_backend_id
@@ -259,15 +221,23 @@ class PmsReservation(models.Model):
         else:
             _log.error(result)
 
-    def guesty_push_reservation(self, default_status="inquiry"):
+    def guesty_push_reservation(
+        self, default_status="inquiry", canceled_by=None, include_body=True
+    ):
         company = self.property_id.company_id or self.env.company
         backend = company.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend defined"))
 
         # create a reservation on guesty
-        body = self.parse_push_reservation_data(backend)
+        if include_body:
+            body = self.parse_push_reservation_data(backend)
+        else:
+            body = {}
+
         body["status"] = default_status
+        if canceled_by:
+            body["canceledBy"] = canceled_by
 
         if self.sale_order_id:
             if not self.partner_id.guesty_ids:
