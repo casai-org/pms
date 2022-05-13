@@ -109,6 +109,25 @@ class BackendGuesty(models.Model):
         success, response = self._get_account_info()
 
         if success:
+            # general data
+            _id = response.get("_id")
+            _tz = response.get("timezone")
+            _currency = response.get("currency")
+
+            currency = self.env["res.currency"].search(
+                [("name", "=", _currency)], limit=1
+            )
+            payload = {
+                "guesty_account_id": _id,
+                "active": True,
+                "currency_id": currency.id,
+            }
+
+            if _tz:
+                payload["timezone"] = _tz
+            self.write(payload)
+
+            # custom fields
             custom_fields = response.get("customFields", [])
             for custom_field in custom_fields:
                 _log.info("Trying to create custom field %s", custom_field)
