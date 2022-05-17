@@ -10,7 +10,6 @@
         "queue_job",
         "sale_automatic_workflow",
         "payment",
-        "website",
         "pms_website",
         "crm",
         "product",
