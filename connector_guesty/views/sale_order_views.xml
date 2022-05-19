@@ -105,13 +105,19 @@
     <record id="sale_order_custom_view" model="ir.ui.view">
         <field name="name">sale.order.custom.view</field>
         <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="inherit_id" ref="sale.view_order_form" />
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='order_line']//form//field[@name='start']" position="attributes">
+            <xpath
+                expr="//field[@name='order_line']//form//field[@name='start']"
+                position="attributes"
+            >
                 <attribute name="invisible">False</attribute>
                 <attribute name="string">Check in</attribute>
             </xpath>
-            <xpath expr="//field[@name='order_line']//form//field[@name='stop']" position="attributes">
+            <xpath
+                expr="//field[@name='order_line']//form//field[@name='stop']"
+                position="attributes"
+            >
                 <attribute name="invisible">False</attribute>
                 <attribute name="string">Check out</attribute>
             </xpath>
