@@ -42,6 +42,7 @@ class BackendGuesty(models.Model):
 
     cleaning_product_id = fields.Many2one("product.product")
     extra_product_id = fields.Many2one("product.product")
+    reservation_product_id = fields.Many2one("product.product")
 
     api_url = fields.Char(required=True, compute="_compute_environment_fields")
     base_url = fields.Char(compute="_compute_environment_fields", required=True)
@@ -67,6 +68,8 @@ class BackendGuesty(models.Model):
 
     cancel_expired_quotes = fields.Boolean(default=False)
 
+    custom_field_ids = fields.One2many("pms.backend.custom_field", "backend_id")
+
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
         # noinspection PyTypeChecker
@@ -88,22 +91,28 @@ class BackendGuesty(models.Model):
                 "base_url": "https://app-sandbox.guesty.com",
             }
 
+    def _get_account_info(self):
+        success, result = self.call_get_request("accounts/me", limit=1)
+        return success, result
+
     def set_as_default(self):
         self.sudo().search([("is_default", "=", True)]).write({"is_default": False})
         self.write({"is_default": True})
 
         self.env.company.guesty_backend_id = self.id
 
-    def check_credentials(self):
-        # url to validate the credentials
-        # this endpoint will search a list of users, it may be empty if the api key
-        # does not have permissions to list the users, but it should be a 200 response
-        # Note: Guesty does not provide a way to validate credentials
-        success, result = self.call_get_request("accounts/me", limit=1)
+    def sync_account_info(self):
+        self.ensure_one()
+        if not self.guesty_account_id:
+            raise UserError(_("Please set the Guesty account ID"))
+
+        success, response = self._get_account_info()
+
         if success:
-            _id = result.get("_id")
-            _tz = result.get("timezone")
-            _currency = result.get("currency")
+            # general data
+            _id = response.get("_id")
+            _tz = response.get("timezone")
+            _currency = response.get("currency")
 
             currency = self.env["res.currency"].search(
                 [("name", "=", _currency)], limit=1
@@ -116,8 +125,31 @@ class BackendGuesty(models.Model):
 
             if _tz:
                 payload["timezone"] = _tz
-
             self.write(payload)
+
+            # custom fields
+            custom_fields = response.get("customFields", [])
+            for custom_field in custom_fields:
+                _log.info("Trying to create custom field %s", custom_field)
+                custom_field = self.env["pms.guesty.custom_field"].search(
+                    [("external_id", "=", custom_field["_id"])]
+                )
+                if not custom_field.exists():
+                    self.env["pms.guesty.custom_field"].sudo().create(
+                        {
+                            "name": custom_field["displayName"],
+                            "external_id": custom_field["_id"],
+                        }
+                    )
+
+    def check_credentials(self):
+        # url to validate the credentials
+        # this endpoint will search a list of users, it may be empty if the api key
+        # does not have permissions to list the users, but it should be a 200 response
+        # Note: Guesty does not provide a way to validate credentials
+        success, result = self._get_account_info()
+        if success:
+            return True
         else:
             raise UserError(_("Connection Test Failed!"))
 
@@ -131,13 +163,21 @@ class BackendGuesty(models.Model):
         guesty_partner = self.env["res.partner.guesty"].search(
             [("partner_id", "=", partner.id)], limit=1
         )
+
+        first_name, last_name = partner.split_name()
+
         if not guesty_partner:
             # create on guesty
             body = {
+                "firstName": first_name,
+                "lastName": last_name,
                 "fullName": partner.name,
                 "email": partner.email,
-                "phone": partner.phone,
             }
+
+            if partner.phone or partner.mobile:
+                body["phone"] = partner.phone or partner.mobile
+
             success, res = self.call_post_request(url_path="guests", body=body)
 
             if not success:
@@ -150,6 +190,7 @@ class BackendGuesty(models.Model):
 
             return customer
         else:
+            guesty_partner.guesty_push_update()
             return guesty_partner
 
     def guesty_search_pull_customer(self, guesty_id):
@@ -318,11 +359,13 @@ class BackendGuesty(models.Model):
 
         url = "{}/{}".format(self.api_url, url_path)
         try:
+            _log.info("Calling GET request to {}".format(url))
             result = requests.get(
                 url=url, params=params, auth=(self.api_key, self.api_secret)
             )
 
             if result.status_code in success_codes:
+                _log.info(result.content)
                 return True, result.json()
 
             _log.error(result.content)
@@ -333,6 +376,7 @@ class BackendGuesty(models.Model):
 
     def call_post_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
+        _log.info("Calling POST request to {}".format(url))
         result = requests.post(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:
@@ -343,6 +387,7 @@ class BackendGuesty(models.Model):
 
     def call_put_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
+        _log.info("Calling PUT request to {}".format(url))
         result = requests.put(url=url, json=body, auth=(self.api_key, self.api_secret))
 
         if result.status_code == 200:
@@ -361,7 +406,18 @@ class BackendGuesty(models.Model):
         while True:
             success, res = self.call_get_request(
                 url_path="listings",
-                params={"city": "Ciudad de México"},
+                params={
+                    "fields": " ".join(
+                        [
+                            "title",
+                            "nickname",
+                            "accountId",
+                            "address.city",
+                            "active",
+                            "isListed",
+                        ]
+                    ),
+                },
                 limit=100,
                 skip=skip,
             )
@@ -371,29 +427,32 @@ class BackendGuesty(models.Model):
             if success:
                 result = res.get("results", [])
                 for record in result:
-                    property_id = property_ids.filtered(
-                        lambda s: s.ref == record.get("nickname")
-                    )
-                    if property_id and len(property_id) == 1:
-                        property_id.write(
-                            {
-                                "guesty_id": record.get("_id"),
-                                "name": "{} / {}".format(
-                                    record.get("nickname"), record.get("title")
-                                ),
-                            }
-                        )
-                    else:
-                        _log.info("Not found: {}".format(record.get("nickname")))
+                    self.env["pms.guesty.listing"].guesty_pull_listing(record)
 
                 if len(result) == 0:
                     break
             else:
                 break
 
+        for property_id in property_ids.filtered(lambda x: x.guesty_id):
+            listing_id = self.env["pms.guesty.listing"].search(
+                [("external_id", "=", property_id.guesty_id)], limit=1
+            )
+            if listing_id:
+                property_id.guesty_listing_ids += listing_id
+
+        for property_id in property_ids.filtered(lambda x: not x.guesty_id):
+            record_match = self.env["pms.guesty.listing"].search(
+                [("name", "=", property_id.ref)]
+            )
+            if record_match:
+                property_id.guesty_id = record_match.external_id
+                property_id.guesty_listing_ids += record_match
+
     def guesty_get_calendar_info(self, check_in, check_out, property_ids):
         listing_ids = property_ids.mapped("guesty_id")
         result = {}
+        real_stop_date = check_out - datetime.timedelta(days=1)
         for listing_id in listing_ids:
             # todo: Fix Calendar
             success, res = self.call_get_request(
@@ -401,14 +460,22 @@ class BackendGuesty(models.Model):
                     listing_id
                 ),
                 paginate=False,
-                params={"startDate": check_in, "endDate": check_out},
+                params={"startDate": check_in, "endDate": real_stop_date},
             )
             if success:
-                calendar_data = result.get("data", {}).get("days", [])
+                calendar_data = res.get("data", {}).get("days", [])
+                if len(calendar_data) == 0:
+                    raise ValidationError(_("Unable to validate dates in guesty"))
+
                 currency = calendar_data[0]["currency"]
                 avg_price = sum(a.get("price") for a in calendar_data) / len(
                     calendar_data
                 )
-                result[listing_id] = {"currency": currency, "price": avg_price}
+                status_list = [a["status"] for a in calendar_data]
+                result[listing_id] = {
+                    "currency": currency,
+                    "price": avg_price,
+                    "status": list(set(status_list)),
+                }
 
         return result
