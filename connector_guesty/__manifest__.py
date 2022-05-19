@@ -13,6 +13,7 @@
         "pms_website",
         "crm",
         "product",
+        "base_automation",
     ],
     "data": [
         "views/backend_guesty.xml",
@@ -33,6 +34,7 @@
         "security/ir.model.access.csv",
         "data/queue.job.function.csv",
         "data/ir_cron.xml",
+        "data/base_automation.xml",
     ],
     "installable": True,
     "development_status": "Beta",
