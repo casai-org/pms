@@ -7,188 +7,8 @@
                     class="oe_structure oe_empty"
                     id="oe_structure_website_sale_property_1"
                 />
-                <section
-                    class="s_carousel_wrapper"
-                    data-vxml="001"
-                    data-snippet="s_carousel"
-                    data-name="Carousel"
-                    style=""
-                >
-                    <div
-                        id="myCarousel1649803591556"
-                        class="s_carousel s_carousel_default carousel slide pointer-event"
-                        data-interval="10000"
-                        style="position: relative;"
-                        data-oe-shape-data="{&quot;shape&quot;:&quot;web_editor/Origins/01&quot;,&quot;flip&quot;:[]}"
-                    >
-                        <div class="o_we_shape o_web_editor_Origins_01" />
-                        <ol class="carousel-indicators o_we_no_overlay">
-                            <li
-                                data-target="#myCarousel1649803591556"
-                                data-slide-to="0"
-                                class=""
-                            />
-                            <li
-                                data-target="#myCarousel1649803591556"
-                                data-slide-to="1"
-                                class="active"
-                            />
-                            <li
-                                data-target="#myCarousel1649803591556"
-                                data-slide-to="2"
-                                class=""
-                            />
-                        </ol>
-                        <div class="carousel-inner">
-                            <div
-                                class="carousel-item pt152 pb152 o_colored_level oe_img_bg"
-                                style="background-image: url('https://dl6dfy55q2gns.cloudfront.net/pictures/14056/69af29bdd2d3b7621ca12d007fa640d1464437c7/69af29bdd2d3b7621ca12d007fa640d1464437c.jpg'); min-height: 1000px;"
-                                data-name="Slide"
-                            >
-                                <div class="container">
-                                    <div class="row content">
-                                        <div
-                                            class="carousel-content col-lg-6 o_colored_level"
-                                        >
-                                            <h2>
-                                                <font
-                                                    style="font-size: 62px;"
-                                                    class="o_default_snippet_text"
-                                                >
-                                                    Título de diapositiva
-                                                </font>
-                                            </h2>
-                                            <p
-                                                class="lead o_default_snippet_text"
-                                            >Utilice este snippet para
-                                                presentar su contenido en un formato tipo presentación de
-                                                diapositivas. No escriba sobre productos o servicios aquí,
-                                                escriba sobre soluciones.
-                                            </p>
-                                            <p>
-                                                <a
-                                                    href="/es_MX/contactus"
-                                                    class="btn btn-primary mb-2 o_default_snippet_text"
-                                                >
-                                                    Contáctenos
-                                                </a>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="carousel-item pt96 pb96 o_colored_level oe_img_bg active"
-                                style="position: relative; background-image: url(&quot;/web/image/4079-9fb412cb/prueba.png?access_token=277104e0-dc90-42c1-aa7f-4b488c7ebe6e&quot;); min-height: 1000px;"
-                                data-name="Slide"
-                                data-original-id="4076"
-                                data-original-src="/web/image/4076-5bbeaec0/prueba.png"
-                                data-mimetype="image/png"
-                                data-resize-width="1653"
-                            >
-                                <div class="container">
-                                    <div class="row content">
-                                        <div
-                                            class="carousel-content col-lg-8 offset-lg-2 bg-black-50 text-center pt48 pb40 o_colored_level"
-                                        >
-                                            <h2
-                                                style="font-size: 62px;"
-                                                class="o_default_snippet_text"
-                                            >Eslogan
-                                                inteligente
-                                            </h2>
-                                            <div
-                                                class="s_hr pt8 pb24"
-                                                data-snippet="s_hr"
-                                                data-name="Separator"
-                                            >
-                                                <hr
-                                                    class="w-25 mx-auto"
-                                                    style="border-top-width: 1px; border-top-style: solid;"
-                                                />
-                                            </div>
-                                            <p
-                                                class="lead o_default_snippet_text"
-                                            >Contar una historia es algo
-                                                poderoso.<br
-                                                />Atrae a los lectores y los involucra.
-                                            </p>
-                                            <p>
-                                                <a
-                                                    href="/es_MX/"
-                                                    class="btn btn-primary mb-2 o_default_snippet_text"
-                                                >Empiece
-                                                    su travesía
-                                                </a>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                class="carousel-item pt128 pb128 o_colored_level oe_img_bg"
-                                style="background-image: url(&quot;/web/image/website.s_carousel_default_image_3&quot;); min-height: 1000px;"
-                                data-name="Slide"
-                            >
-                                <div class="container">
-                                    <div class="row content">
-                                        <div
-                                            class="carousel-content col-lg-6 offset-lg-6 o_colored_level"
-                                        >
-                                            <h2>
-                                                <font
-                                                    style="font-size: 62px; background-color: rgb(255, 255, 255);"
-                                                    class="o_default_snippet_text"
-                                                >Edite este título
-                                                </font>
-                                            </h2>
-                                            <h4>
-                                                <font
-                                                    style="background-color: rgb(255, 255, 255);"
-                                                    class="o_default_snippet_text"
-                                                >La buena escritura es
-                                                    simple, pero no simplista.
-                                                </font>
-                                            </h4>
-                                            <br />
-                                            <p
-                                                class="o_default_snippet_text"
-                                            >Una buena copia comienza con
-                                                entender cómo su producto o servicio ayuda a sus clientes. Las
-                                                palabras simples se comunican mejor que las palabras grandes y
-                                                el lenguaje pomposo.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <a
-                            class="carousel-control-prev o_not_editable o_we_no_overlay"
-                            href="#myCarousel1649803591556"
-                            data-slide="prev"
-                            role="img"
-                            aria-label="Anterior"
-                            title="Anterior"
-                        >
-                            <span class="carousel-control-prev-icon" />
-                            <span class="sr-only o_default_snippet_text">Anterior
-                            </span>
-                        </a>
-                        <a
-                            class="carousel-control-next o_not_editable o_we_no_overlay"
-                            href="#myCarousel1649803591556"
-                            data-slide="next"
-                            role="img"
-                            aria-label="Siguiente"
-                            title="Siguiente"
-                        >
-                            <span class="carousel-control-next-icon" />
-                            <span class="sr-only o_default_snippet_text">Siguiente
-                            </span>
-                        </a>
-                    </div>
-
+                <t t-call="connector_guesty.pms_website_header_01" />
+                <section>
                     <div class="container">
                         <div class="row">
                             <div class="col-md-12 pt-3 pb-3 " id="product_details">
@@ -270,56 +90,76 @@
                         <div class="row align-items-center">
                             <div class="col-lg-6 pt16 pb16 o_colored_level">
                                 <h2>Sobre el departamento</h2>
-                                <p>
-                                    <span
-                                        style="color: var(--paragraph-color); font-size: 15px; font-family: &quot;Work Sans&quot;;"
+                                <div
+                                    style="max-height: 250px; text-overflow: ellipsis; overflow: hidden;"
+                                >
+                                    <p
+                                        style="font-size:15px; color: rgba(0,0,0,0.9); font-family: 'Work Sans'; text-align: justify;"
                                     >
-                                        Prepárate para una cómoda estancia en la Ciudad de México en este
-                                        loft minimalista de 1 habitación, que tiene todo lo que necesitas
-                                        para disfrutar del
-                                        reconocido vecindario de Polanco. Comienza tu día con un café de
-                                        cortesía, preparando tu desayuno en la cocina, y viendo tus series
-                                        favoritas
-                                        en la televisión equipada con Chromecast. Si necesitas hacer un post
-                                        o una llamada, cuentan con conexión WiFi de alta velocidad.
-                                        Trabaja desde el amplio balcón donde también puedes tomar el sol y
-                                        hacer algo de yoga.
-                                        El baño cuenta con productos orgánicos locales que le darán una
-                                        sensación de spa cada vez que tomes un baño.
-                                        El aire acondicionado hará que tus días de verano sean frescos, y
-                                        calefacción central mantendrá tu hogar cálido durante el invierno.
-                                        A la hora de salir, si te gustan las recomendaciones locales,
-                                        nuestro equipo de concierge está listo para contarte acerca de los
-                                        mejores lugares 24/7 a través de nuestra app.
-                                        Disfruta de las amenidades que tenemos para ti al interior del
-                                        edificio como wellness center, espacios de coworking, y mezzanine
-                                        exclusivos para huéspedes Casai.
-                                        <br />
-                                        *La Ciudad de México es un lugar lleno de sonidos, en caso que tu
-                                        estadía llegue a ser más ruidosa de lo normal, por favor contacta a
-                                        nuestro equipo de concierge. Ellos harán todo lo que esté en sus
-                                        manos para ayudarte a estar cómodo.
-                                    </span>
-                                </p>
+                                        <span t-field="property.ota_description" />
+                                    </p>
+                                </div>
                                 <p>
                                     <a
                                         href="#"
                                         class="mb-2 btn btn-primary"
-                                        data-original-title=""
-                                        title=""
-                                        aria-describedby="tooltip253950"
-                                    >Descubrir más
+                                        data-toggle="modal"
+                                        data-target="#modal_about_the_space"
+                                    >
+                                        <span>Descubrir más</span>
                                     </a>
+                                    <div
+                                        class="modal fade"
+                                        id="modal_about_the_space"
+                                        tabindex="-1"
+                                        role="dialog"
+                                        aria-labelledby="modal_about_the_space_label"
+                                        aria-hidden="true"
+                                    >
+                                        <div class="modal-dialog" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5
+                                                        class="modal-title"
+                                                        id="modal_about_the_space_label"
+                                                    >
+                                                        <span
+                                                        >Sobre el departamento</span>
+                                                    </h5>
+                                                    <button
+                                                        type="button"
+                                                        class="close"
+                                                        data-dismiss="modal"
+                                                        aria-label="Close"
+                                                    >
+                                                        <span
+                                                            aria-hidden="false"
+                                                        ><![CDATA[&times;]]></span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p
+                                                        t-field="property.ota_description"
+                                                    />
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-secondary"
+                                                        data-dismiss="modal"
+                                                    >Close
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </p>
                             </div>
                             <div class="col-lg-6 pt16 pb16 o_colored_level">
                                 <img
-                                    src="/web/image/website.s_text_image_default_image"
+                                    t-att-src="section_id['picture']"
                                     class="img img-fluid mx-auto"
-                                    alt=""
                                     loading="lazy"
-                                    data-original-id="139"
-                                    data-original-src="/website/static/src/img/snippets_demo/s_text_image.jpg"
                                     data-mimetype="image/jpeg"
                                 />
                             </div>

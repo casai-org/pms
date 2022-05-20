@@ -35,6 +35,7 @@
         "data/queue.job.function.csv",
         "data/ir_cron.xml",
         "data/base_automation.xml",
+        "templates/header_01.xml",
     ],
     "installable": True,
     "development_status": "Beta",
