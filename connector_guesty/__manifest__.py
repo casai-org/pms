@@ -36,6 +36,7 @@
         "data/ir_cron.xml",
         "data/base_automation.xml",
         "templates/header_01.xml",
+        "templates/dynamic_amenities.xml",
     ],
     "installable": True,
     "development_status": "Beta",
