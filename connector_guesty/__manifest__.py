@@ -41,6 +41,8 @@
         "templates/section_about_apt.xml",
         "templates/fixed_amenities.xml",
         "templates/section_dynamic_reviews.xml",
+        "templates/section_location.xml",
+        "templates/section_policies.xml",
     ],
     "installable": True,
     "development_status": "Beta",
