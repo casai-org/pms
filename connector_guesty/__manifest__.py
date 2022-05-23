@@ -37,6 +37,8 @@
         "data/base_automation.xml",
         "templates/header_01.xml",
         "templates/dynamic_amenities.xml",
+        "templates/info_bar_01.xml",
+        "templates/section_about_apt.xml",
     ],
     "installable": True,
     "development_status": "Beta",
