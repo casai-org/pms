@@ -39,6 +39,8 @@
         "templates/dynamic_amenities.xml",
         "templates/info_bar_01.xml",
         "templates/section_about_apt.xml",
+        "templates/fixed_amenities.xml",
+        "templates/section_dynamic_reviews.xml",
     ],
     "installable": True,
     "development_status": "Beta",
