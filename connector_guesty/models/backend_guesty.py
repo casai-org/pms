@@ -72,6 +72,10 @@ class BackendGuesty(models.Model):
     custom_field_ids = fields.One2many("pms.backend.custom_field", "backend_id")
     enable_guesty_discount = fields.Boolean(default=False)
 
+    workflow_process_id = fields.Many2one(
+        "sale.workflow.process", company_dependent=True
+    )
+
     @api.depends("guesty_environment")
     def _compute_environment_fields(self):
         # noinspection PyTypeChecker
