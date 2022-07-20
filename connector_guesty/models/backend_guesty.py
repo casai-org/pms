@@ -437,7 +437,6 @@ class BackendGuesty(models.Model):
                 )
 
             if result.status_code in success_codes:
-                _log.info(result.content)
                 return True, result.json()
 
             _log.error(result.content)

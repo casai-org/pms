@@ -54,9 +54,10 @@
                                 name="guesty_environment"
                                 attrs="{'readonly': [('active', '=', True)]}"
                             />
-                            <field name="auth_type" />
-                            <field name="refresh_token" />
-                            <field name="token_expiration" />
+                            <field
+                                name="auth_type"
+                                attrs="{'readonly': [('active', '=', True)]}"
+                            />
                             <field
                                 name="api_key"
                                 attrs="{'readonly': [('active', '=', True)]}"
