@@ -4,6 +4,7 @@ import base64
 import datetime
 import json
 import logging
+from urllib.parse import urlencode
 
 import pytz
 import requests
@@ -47,6 +48,17 @@ class BackendGuesty(models.Model):
 
     api_url = fields.Char(required=True, compute="_compute_environment_fields")
     base_url = fields.Char(compute="_compute_environment_fields", required=True)
+    auth_url = fields.Char(compute="_compute_environment_fields", required=True)
+
+    auth_type = fields.Selection(
+        [("basic", "Basic Auth"), ("oauth2", "oAuth 2.0")],
+        default="basic",
+        required=True,
+    )
+
+    refresh_token = fields.Text()
+    token_expiration = fields.Datetime()
+
     crm_lead_rule_ids = fields.One2many("crm.lead.rule", "backend_id")
     is_default = fields.Boolean(default=False)
 
@@ -76,16 +88,30 @@ class BackendGuesty(models.Model):
     def _compute_environment_fields(self):
         # noinspection PyTypeChecker
         for record in self:
-            map_values = self._map_environment_data(record.guesty_environment)
+            map_values = self._map_environment_data(
+                record.guesty_environment, record.auth_type
+            )
             for field_name in map_values:
                 record[field_name] = map_values[field_name]
 
     # noinspection PyMethodMayBeStatic
-    def _map_environment_data(self, guesty_env):
-        if guesty_env == "prod":
+    def _map_environment_data(self, guesty_env, auth_type="basic"):
+        if guesty_env == "prod" and auth_type == "basic":
             return {
                 "api_url": "https://api.guesty.com/api/v2",
                 "base_url": "https://app.guesty.com",
+            }
+        elif guesty_env == "prod" and auth_type == "oauth2":
+            return {
+                "api_url": "https://open-api.guesty.com/v1",
+                "base_url": "https://app.guesty.com",
+                "auth_url": "https://open-api.guesty.com/oauth2/token",
+            }
+        elif guesty_env == "dev" and auth_type == "oauth2":
+            return {
+                "api_url": "https://open-api-sandbox.guesty.com/v1",
+                "base_url": "https://app-sandbox.guesty.com",
+                "auth_url": "https://open-api-sandbox.guesty.com/oauth2/token",
             }
         else:
             return {
@@ -395,9 +421,25 @@ class BackendGuesty(models.Model):
         url = "{}/{}".format(self.api_url, url_path)
         try:
             _log.info("Calling GET request to {}".format(url))
-            result = requests.get(
-                url=url, params=params, auth=(self.api_key, self.api_secret)
-            )
+            if self.auth_type == "oauth2":
+                access_token = self.get_auth_token()
+                _log.info(access_token)
+                if not access_token:
+                    return False, None
+
+                result = requests.get(
+                    url=url,
+                    params=params,
+                    headers={"Authorization": "Bearer {}".format(access_token)},
+                )
+
+                _log.info("====================================")
+                _log.info(result.status_code)
+                _log.info(result.content)
+            else:
+                result = requests.get(
+                    url=url, params=params, auth=(self.api_key, self.api_secret)
+                )
 
             if result.status_code in success_codes:
                 _log.info(result.content)
@@ -409,11 +451,67 @@ class BackendGuesty(models.Model):
 
         return False, None
 
+    def get_auth_token(self):
+
+        current_date = datetime.datetime.now()
+
+        if self.token_expiration and self.token_expiration > current_date:
+            return self.refresh_token
+
+        payload = {
+            "grant_type": "client_credentials",
+            "scope": "open-api",
+            "client_secret": self.api_secret,
+            "client_id": self.api_key,
+        }
+
+        data = urlencode(payload)
+
+        request_token = requests.post(
+            url=self.auth_url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data=data,
+        )
+
+        _log.info("============ TOKEN ==================")
+        _log.info(request_token.content)
+        _log.info(request_token.status_code)
+        _log.info(request_token.headers)
+        _log.info("=====================================")
+        if request_token.status_code == 200:
+            response_data = request_token.json()
+            token, expire = response_data["access_token"], response_data["expires_in"]
+            expiration = current_date + datetime.timedelta(seconds=expire)
+
+            self.refresh_token = token
+            self.token_expiration = expiration
+            return response_data["access_token"]
+
+        else:
+            return None
+
     def call_post_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
         _log.info("Calling POST request to {}".format(url))
-        result = requests.post(url=url, json=body, auth=(self.api_key, self.api_secret))
 
+        if self.auth_type == "oauth2":
+            access_token = self.get_auth_token()
+
+            if not access_token:
+                return False, None
+
+            result = requests.post(
+                url=url,
+                json=body,
+                headers={"Authorization": "Bearer {}".format(access_token)},
+            )
+
+        else:
+            result = requests.post(
+                url=url, json=body, auth=(self.api_key, self.api_secret)
+            )
+
+        _log.info(result.content)
         if result.status_code == 200:
             return True, result.json()
         else:
@@ -423,7 +521,22 @@ class BackendGuesty(models.Model):
     def call_put_request(self, url_path, body):
         url = "{}/{}".format(self.api_url, url_path)
         _log.info("Calling PUT request to {}".format(url))
-        result = requests.put(url=url, json=body, auth=(self.api_key, self.api_secret))
+
+        if self.auth_type == "oauth2":
+            access_token = self.get_auth_token()
+
+            if not access_token:
+                return False, None
+
+            result = requests.put(
+                url=url,
+                json=body,
+                headers={"Authorization": "Bearer {}".format(access_token)},
+            )
+        else:
+            result = requests.put(
+                url=url, json=body, auth=(self.api_key, self.api_secret)
+            )
 
         if result.status_code == 200:
             if result.content.decode("utf-8") == "ok":
