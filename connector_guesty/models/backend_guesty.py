@@ -208,7 +208,6 @@ class BackendGuesty(models.Model):
         # Note: Guesty does not provide a way to validate credentials
         success, result = self._get_account_info()
         if success:
-            _log.info(result)
             self.write({"active": True, "guesty_account_id": result["_id"]})
             return True
         else:
@@ -423,7 +422,6 @@ class BackendGuesty(models.Model):
             _log.info("Calling GET request to {}".format(url))
             if self.auth_type == "oauth2":
                 access_token = self.get_auth_token()
-                _log.info(access_token)
                 if not access_token:
                     return False, None
 
@@ -433,9 +431,6 @@ class BackendGuesty(models.Model):
                     headers={"Authorization": "Bearer {}".format(access_token)},
                 )
 
-                _log.info("====================================")
-                _log.info(result.status_code)
-                _log.info(result.content)
             else:
                 result = requests.get(
                     url=url, params=params, auth=(self.api_key, self.api_secret)
@@ -452,7 +447,9 @@ class BackendGuesty(models.Model):
         return False, None
 
     def get_auth_token(self):
-
+        """
+        Obtain a new token
+        """
         current_date = datetime.datetime.now()
 
         if self.token_expiration and self.token_expiration > current_date:
@@ -473,11 +470,6 @@ class BackendGuesty(models.Model):
             data=data,
         )
 
-        _log.info("============ TOKEN ==================")
-        _log.info(request_token.content)
-        _log.info(request_token.status_code)
-        _log.info(request_token.headers)
-        _log.info("=====================================")
         if request_token.status_code == 200:
             response_data = request_token.json()
             token, expire = response_data["access_token"], response_data["expires_in"]
@@ -511,7 +503,6 @@ class BackendGuesty(models.Model):
                 url=url, json=body, auth=(self.api_key, self.api_secret)
             )
 
-        _log.info(result.content)
         if result.status_code == 200:
             return True, result.json()
         else:
