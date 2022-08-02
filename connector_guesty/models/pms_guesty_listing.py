@@ -22,6 +22,7 @@ class PmsGuestyListing(models.Model):
     active = fields.Boolean(string="Active", default=True)
     external_id = fields.Char(string="External ID", required=True)
     guesty_account_id = fields.Char(string="Guesty Account ID", required=True)
+    json_data = fields.Text()
 
     _sql_constraints = [
         ("unique_external_id", "unique(external_id)", "Listing already exists")
@@ -49,9 +50,24 @@ class PmsGuestyListing(models.Model):
             "timezone": payload.get("timezone"),
             "guesty_account_id": payload["accountId"],
             "external_id": payload["_id"],
+            "json_data": payload
         }
 
         if not listing_id:
             self.sudo().create(record_data)
         else:
             listing_id.sudo().write(record_data)
+
+    def create_pms_property(self):
+        pms_property = self.env["pms.property"].sudo().search([
+            ("guesty_id", "=", self.external_id)
+        ])
+
+        if not pms_property:
+            pms_property = self.env["pms.property"].sudo().create({
+                "name": self.title,
+                "ref": self.name,
+                "tz": self.timezone
+            })
+
+        return pms_property
