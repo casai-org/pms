@@ -204,6 +204,9 @@ class PmsProperty(models.Model):
             "guesty_id": guesty_id,
             "name": payload.get("title"),
             "ref": payload.get("nickname"),
+            # "bathrooms": payload.get("bathrooms", 0),
+            # "bedrooms": payload.get("bedrooms", 0),
+            # "timezone": payload.get("timezone"),
             "owner_id": 1,  # todo: Change and define a default owner
         }
         listing_type = payload.get("roomType")

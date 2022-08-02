@@ -14,6 +14,11 @@ class PmsGuestyListing(models.Model):
     name = fields.Char(string="Name", required=True)
     title = fields.Char(string="Title", required=True)
     city = fields.Char(string="City", required=False)
+
+    bedrooms = fields.Integer(string="Num Bedrooms")
+    bathrooms = fields.Integer(string="Num Bathrooms")
+    timezone = fields.Char(string="Timezone")
+
     active = fields.Boolean(string="Active", default=True)
     external_id = fields.Char(string="External ID", required=True)
     guesty_account_id = fields.Char(string="Guesty Account ID", required=True)
@@ -24,14 +29,24 @@ class PmsGuestyListing(models.Model):
 
     def guesty_pull_listing(self, payload):
         _id = payload.get("_id")
-        listing_id = self.search([("external_id", "=", _id)], limit=1)
+        listing_id = self.search([
+            ("external_id", "=", _id),
+            ("active", "in", [True, False])
+        ], limit=1)
+
+        city = None
+        if "address" in payload:
+            if "city" in payload["address"]:
+                city = payload["address"]["city"]
+
         record_data = {
             "name": payload["nickname"],
             "title": payload["title"] if "title" in payload else payload["nickname"],
-            "city": payload["address"]["city"]
-            if "address" in payload and "city" in payload["address"]
-            else None,
+            "city": city,
             "active": payload["active"],
+            "bathrooms": payload.get("bathrooms", 0),
+            "bedrooms": payload.get("bedrooms", 0),
+            "timezone": payload.get("timezone"),
             "guesty_account_id": payload["accountId"],
             "external_id": payload["_id"],
         }

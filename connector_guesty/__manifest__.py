@@ -36,6 +36,7 @@
         "data/queue.job.function.csv",
         "data/ir_cron.xml",
         "data/base_automation.xml",
+        "data/menu.xml",
         "templates/header_01.xml",
         "templates/dynamic_amenities.xml",
         "templates/info_bar_01.xml",
