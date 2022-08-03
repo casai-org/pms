@@ -75,8 +75,9 @@ class GuestyController(http.Controller):
     def listing_webhook(self):
         data = request.jsonrequest
         if data["event"] == "listing.updated" and "listing" in data:
-            request.env["pms.guesty.listing"].sudo(
-            ).with_delay().guesty_pull_listing(data["listing"])
+            request.env["pms.guesty.listing"].sudo().with_delay().guesty_pull_listing(
+                data["listing"]
+            )
         return {"success": True}
 
     @http.route(

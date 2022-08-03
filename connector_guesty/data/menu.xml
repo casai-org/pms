@@ -4,5 +4,10 @@
         <field name="res_model">pms.guesty.listing</field>
         <field name="view_mode">tree,form</field>
     </record>
-    <menuitem id="guesty_listings_menu" action="guesty_listings_menu_action" name="Guesty Listings" parent="pms_base.menu_data"/>
+    <menuitem
+        id="guesty_listings_menu"
+        action="guesty_listings_menu_action"
+        name="Guesty Listings"
+        parent="pms_base.menu_data"
+    />
 </odoo>

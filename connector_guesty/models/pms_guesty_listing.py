@@ -30,10 +30,9 @@ class PmsGuestyListing(models.Model):
 
     def guesty_pull_listing(self, payload):
         _id = payload.get("_id")
-        listing_id = self.search([
-            ("external_id", "=", _id),
-            ("active", "in", [True, False])
-        ], limit=1)
+        listing_id = self.search(
+            [("external_id", "=", _id), ("active", "in", [True, False])], limit=1
+        )
 
         city = None
         if "address" in payload:
@@ -50,7 +49,7 @@ class PmsGuestyListing(models.Model):
             "timezone": payload.get("timezone"),
             "guesty_account_id": payload["accountId"],
             "external_id": payload["_id"],
-            "json_data": payload
+            "json_data": payload,
         }
 
         if not listing_id:
@@ -59,9 +58,11 @@ class PmsGuestyListing(models.Model):
             listing_id.sudo().write(record_data)
 
     def create_pms_property(self):
-        pms_property = self.env["pms.property"].sudo().search([
-            ("guesty_id", "=", self.external_id)
-        ])
+        pms_property = (
+            self.env["pms.property"]
+            .sudo()
+            .search([("guesty_id", "=", self.external_id)])
+        )
 
         payload = {
             "name": self.title,
@@ -69,7 +70,7 @@ class PmsGuestyListing(models.Model):
             "tz": self.timezone,
             "guesty_id": self.external_id,
             "owner_id": 1,  # fix to the correct one
-            "guesty_listing_ids": [(4, self.id)]
+            "guesty_listing_ids": [(4, self.id)],
         }
 
         if not pms_property:
