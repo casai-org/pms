@@ -63,11 +63,18 @@ class PmsGuestyListing(models.Model):
             ("guesty_id", "=", self.external_id)
         ])
 
+        payload = {
+            "name": self.title,
+            "ref": self.name,
+            "tz": self.timezone,
+            "guesty_id": self.external_id,
+            "owner_id": 1,  # fix to the correct one
+            "guesty_listing_ids": [(4, self.id)]
+        }
+
         if not pms_property:
-            pms_property = self.env["pms.property"].sudo().create({
-                "name": self.title,
-                "ref": self.name,
-                "tz": self.timezone
-            })
+            pms_property = self.env["pms.property"].sudo().create(payload)
+        else:
+            pms_property.write(payload)
 
         return pms_property

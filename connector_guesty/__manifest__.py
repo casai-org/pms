@@ -32,6 +32,7 @@
         "wizard/crm_lead_new_reservation.xml",
         "views/property_assets.xml",
         "views/pms_property_picture.xml",
+        "views/pms_guesty_listing.xml",
         "security/ir.model.access.csv",
         "data/queue.job.function.csv",
         "data/ir_cron.xml",
