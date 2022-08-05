@@ -1,8 +1,7 @@
 # Copyright (C) 2021 Casai (https://www.casai.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-import logging
-import json
 import ast
+import logging
 
 from odoo import api, fields, models
 
@@ -45,7 +44,7 @@ class PmsGuestyReservation(models.Model):
             "uuid": uuid,
             "state": state,
             "is_updated": False,
-            "json_meta": reservation_info
+            "json_meta": reservation_info,
         }
         reservation = self.search([("uuid", "=", uuid)], limit=1)
         if not reservation.exists():
@@ -67,9 +66,10 @@ class PmsGuestyReservation(models.Model):
         return reservation
 
     def save_pms_reservation(self):
-        pms_reservation_id = self.env["pms.reservation"].sudo().guesty_pull_reservation(
-            self._get_json_meta(),
-            "reservation.update"
+        pms_reservation_id = (
+            self.env["pms.reservation"]
+            .sudo()
+            .guesty_pull_reservation(self._get_json_meta(), "reservation.update")
         )
 
         _log.info("Guesty Reservation Pulled: {}".format(pms_reservation_id))
