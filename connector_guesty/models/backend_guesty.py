@@ -81,7 +81,7 @@ class BackendGuesty(models.Model):
         if not self.guesty_account_id:
             raise UserError(_("Please set the Guesty account ID"))
 
-        success, response = self._get_account_info()
+        success, response = self.credentials_id._get_account_info()
 
         if success:
             # general data
