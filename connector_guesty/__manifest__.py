@@ -29,6 +29,7 @@
         "views/product_template_views.xml",
         "wizard/pms_property_days_quotation_expiration_views.xml",
         "wizard/crm_lead_new_reservation.xml",
+        "views/guesty_calendar_report.xml",
         "views/property_assets.xml",
         "views/pms_property_picture.xml",
         "views/pms_guesty_listing.xml",

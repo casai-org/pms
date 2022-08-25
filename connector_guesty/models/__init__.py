@@ -6,6 +6,7 @@ from . import (
     pms_property_picture,
     pms_property_reservation,
     pms_guesty_calendar,
+    pms_guesty_calendar_report,
     pms_guesty_custom_field,
     pms_guesty_listing,
     pms_guesty_reservation,
