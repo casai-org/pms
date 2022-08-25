@@ -54,10 +54,14 @@ class WizCrmLeadNewReservation(models.TransientModel):
         available_listing_ids = {}
         for listing_id in calendar_by_listing:
             listing_calendar_ids = calendar_by_listing[listing_id]
-            if all([a.state == "available" for a in listing_calendar_ids]) and len(listing_calendar_ids) == no_nights:
+            if (
+                all([a.state == "available" for a in listing_calendar_ids])
+                and len(listing_calendar_ids) == no_nights
+            ):
                 price_info = {
                     "listing_id": listing_id,
-                    "price": sum([a.price for a in calendar_by_listing[listing_id]]) / len(calendar_by_listing[listing_id])
+                    "price": sum([a.price for a in calendar_by_listing[listing_id]])
+                    / len(calendar_by_listing[listing_id]),
                 }
                 if len(listing_calendar_ids) > 0:
                     price_info["currency"] = listing_calendar_ids[0].currency
@@ -66,7 +70,11 @@ class WizCrmLeadNewReservation(models.TransientModel):
         _search_props = self.env["pms.property"].search(
             [
                 ("guesty_id", "!=", False),
-                ("guesty_listing_ids.external_id", "in", list(available_listing_ids.keys()))
+                (
+                    "guesty_listing_ids.external_id",
+                    "in",
+                    list(available_listing_ids.keys()),
+                ),
             ]
         )
 
@@ -122,7 +130,7 @@ class WizCrmLeadNewReservation(models.TransientModel):
             and a["last_state"] == "available"
         ]
 
-    @ staticmethod
+    @staticmethod
     def compute_default_ci_co(date_input, time_input):
         if date_input and time_input:
             date_hour, date_minute = divmod(

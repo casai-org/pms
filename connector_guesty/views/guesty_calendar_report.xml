@@ -5,8 +5,17 @@
         <field name="name">Calendar</field>
         <field name="model">guesty.calendar.report</field>
         <field name="arch" type="xml">
-            <calendar string="Leads Generation" create="0" mode="month" date_start="start_date" date_stop="end_date" color="id" hide_time="true" event_limit="5">
-                <field name="listing_id"/>
+            <calendar
+                string="Leads Generation"
+                create="0"
+                mode="month"
+                date_start="start_date"
+                date_stop="end_date"
+                color="id"
+                hide_time="true"
+                event_limit="5"
+            >
+                <field name="listing_id" />
             </calendar>
         </field>
     </record>
@@ -18,5 +27,9 @@
     </record>
 
 
-    <menuitem name="Calendar Report" id="guesty_calendar_report_menu" action="guesty_calendar_report_action"></menuitem>
+    <menuitem
+        name="Calendar Report"
+        id="guesty_calendar_report_menu"
+        action="guesty_calendar_report_action"
+    />
 </odoo>
