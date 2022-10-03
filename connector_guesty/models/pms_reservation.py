@@ -302,7 +302,7 @@ class PmsReservation(models.Model):
         else:
             raise ValidationError(_("No sale order linked to reservation"))
 
-    def guesty_pull_reservation(self, reservation_info, event_name):
+    def guesty_pull_reservation(self, backend, reservation_info, event_name):
         guesty_listing_id = reservation_info["listingId"]
         _log.info("Pulling reservation for listing {}".format(guesty_listing_id))
 
@@ -332,10 +332,6 @@ class PmsReservation(models.Model):
             raise ValidationError(
                 _("Company not found on listing {}".format(guesty_listing_id))
             )
-
-        backend = company_id.guesty_backend_id
-        if not backend:
-            raise ValidationError(_("No backend defined"))
 
         success, reservation_data = backend.sudo().call_get_request(
             url_path="reservations/{}".format(reservation_info["_id"]),

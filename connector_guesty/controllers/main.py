@@ -40,39 +40,15 @@ class GuestyController(http.Controller):
         return company, backend
 
     @http.route('/guesty/<model("backend.guesty"):connector>')
-    def reservations_webhook_v2(self, connector):
-        reservation_info, event_name = standardize_request_data(request.jsonrequest)
-        assert isinstance(reservation_info, dict)
-        assert isinstance(event_name, str)
-
-        if event_name not in ["reservation.new", "reservation.updated"]:
-            raise ValidationError(_("Invalid event name {}".format(event_name)))
-
-        reservation_id = reservation_info["_id"]
-        reservation_obj = self.env["pms.guesty.reservation"].search(
-            [("uuid", "=", reservation_id)]
-        )
-        if not reservation_obj:
-            reservation_obj = self.env["pms.guesty.reservation"].create(
-                {"uuid": reservation_id, "state": reservation_info["status"]}
-            )
-
-        reservation_obj.with_delay(eta=10).pull_reservation(reservation_info)
-
-    @http.route(
-        "/guesty/reservations_webhook",
-        methods=["POST"],
-        auth="public",
-        csrf=False,
-        type="json",
-    )
-    def reservations_webhook(self, **data):
+    def reservations_webhook(self, connector):
         reservation_info, event_name = standardize_request_data(request.jsonrequest)
         if event_name not in ["reservation.new", "reservation.updated"]:
             raise ValidationError(_("Invalid event name {}".format(event_name)))
 
         reservation_model = request.env["pms.guesty.reservation"].sudo()
-        reservation_model.with_delay(10).pull_reservation(reservation_info)
+        reservation_model.with_delay(eta=10).pull_reservation(
+            connector, reservation_info
+        )
         return {"success": True}
 
     @http.route(

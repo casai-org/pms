@@ -45,7 +45,7 @@ class PmsGuestyReservation(models.Model):
             _log.warning(ex)
             return {}
 
-    def pull_reservation(self, reservation_info):
+    def pull_reservation(self, connector, reservation_info):
         uuid, state = reservation_info["_id"], reservation_info["status"]
         payload = {
             "uuid": uuid,
@@ -56,27 +56,32 @@ class PmsGuestyReservation(models.Model):
         reservation = self.search([("uuid", "=", uuid)], limit=1)
         if not reservation.exists():
             _log.info("reservation does not exists: {}".format(uuid))
-            reservation = self.create(payload)
-            reservation.save_pms_reservation()
+            reservation = self.create([payload])
+            reservation.save_pms_reservation(connector)
         elif reservation.is_updated:
             _log.info("reservation already exists and were updated: {}".format(uuid))
             reservation.write(payload)
-            reservation.save_pms_reservation()
+            reservation.save_pms_reservation(connector)
         else:
-            _log.info("Event skipped for: {}".format(uuid))
-            meta = reservation._get_json_meta()
-            last_updatde_at__meta = meta["lastUpdatedAt"]
-            last_updated_at__info = reservation_info["lastUpdatedAt"]
-            if last_updated_at__info > last_updatde_at__meta:
-                self.with_delay(10).pull_reservation(reservation_info)
+            reservation.skip_reservation(reservation_info)
 
         return reservation
 
-    def save_pms_reservation(self):
+    def skip_reservation(self, reservation_info):
+        _log.info("Event skipped for: {}".format(reservation_info["_id"]))
+        meta = self._get_json_meta()
+        last_updated_at__meta = meta["lastUpdatedAt"]
+        last_updated_at__info = reservation_info["lastUpdatedAt"]
+        if last_updated_at__info > last_updated_at__meta:
+            self.with_delay(eta=10).pull_reservation(reservation_info)
+
+    def save_pms_reservation(self, connector):
         pms_reservation_id = (
             self.env["pms.reservation"]
             .sudo()
-            .guesty_pull_reservation(self._get_json_meta(), "reservation.update")
+            .guesty_pull_reservation(
+                connector, self._get_json_meta(), "reservation.update"
+            )
         )
 
         _log.info("Guesty Reservation Pulled: {}".format(pms_reservation_id))
