@@ -19,6 +19,13 @@ class PmsGuestyReservation(models.Model):
 
     uuid = fields.Char(copy=False, required=True)
     state = fields.Char(copy=False, default="inquiry")
+    listing_id = fields.Char(copy=False)
+    account_id = fields.Char(copy=False)
+    confirmation_code = fields.Char(copy=False)
+    check_in = fields.Date(copy=False)
+    check_out = fields.Date(copy=False)
+    source = fields.Char(copy=False)
+    money_currency = fields.Char(copy=False)
 
     is_updated = fields.Boolean(default=False)
     json_meta = fields.Text()
