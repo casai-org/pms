@@ -36,54 +36,62 @@ class WizCrmLeadNewReservation(models.TransientModel):
         return action
 
     def action_check_availability(self):
-        guesty_listing_list = self.execute_availability_query()
-        _search_props = self.env["pms.property"].search(
-            [("guesty_id", "!=", False), ("guesty_id", "in", guesty_listing_list)]
+        no_nights = (self.check_out - self.check_in).days
+        real_stop_date = self.check_out - datetime.timedelta(days=1)
+        calendar_ids = self.env["pms.guesty.calendar"].search(
+            [
+                ("listing_date", ">=", self.check_in),
+                ("listing_date", "<=", real_stop_date),
+            ]
         )
 
-        calendar_result = self.env.company.guesty_backend_id.guesty_get_calendar_info(
-            self.check_in, self.check_out, _search_props
-        )
+        calendar_by_listing = {}
+        for calendar in calendar_ids:
+            if calendar.listing_id not in calendar_by_listing:
+                calendar_by_listing[calendar.listing_id] = []
+            calendar_by_listing[calendar.listing_id].append(calendar)
 
-        calendar = [
-            {"listing": key, "info": calendar_result[key]}
-            for key in calendar_result
-            if len(calendar_result[key]["status"]) == 1
-            and "available" in calendar_result[key]["status"]
-        ]
+        available_listing_ids = {}
+        for listing_id in calendar_by_listing:
+            listing_calendar_ids = calendar_by_listing[listing_id]
+            if (
+                all([a.state == "available" for a in listing_calendar_ids])
+                and len(listing_calendar_ids) == no_nights
+            ):
+                price_info = {
+                    "listing_id": listing_id,
+                    "price": sum([a.price for a in calendar_by_listing[listing_id]])
+                    / len(calendar_by_listing[listing_id]),
+                }
+                if len(listing_calendar_ids) > 0:
+                    price_info["currency"] = listing_calendar_ids[0].currency
+                available_listing_ids[listing_id] = price_info
 
-        calendar_ids = [a["listing"] for a in calendar]
         _search_props = self.env["pms.property"].search(
-            [("guesty_id", "!=", False), ("guesty_id", "in", calendar_ids)]
+            [
+                ("guesty_id", "!=", False),
+                (
+                    "guesty_listing_ids.external_id",
+                    "in",
+                    list(available_listing_ids.keys()),
+                ),
+            ]
         )
 
         self.env["crm.listing.availability"].sudo().search(
             [("crm_lead_id", "=", self.crm_lead_id.id)]
         ).unlink()
 
-        no_nights = (self.check_out - self.check_in).days
-
         for _prop in _search_props:
-            _product = (
-                self.env.company.guesty_backend_id.reservation_product_id.with_context(
-                    pricelist=self.price_list_id.id,
-                    property_id=_prop,
-                    reservation_start=self.check_in,
-                    reservation_stop=self.check_out,
-                    reservation_date=datetime.datetime.now(),
-                )
-            )
-
-            # noinspection PyProtectedMember
-            _product._compute_product_price()
-            custom_price = _product.price
+            listing_info = available_listing_ids[_prop.guesty_id]
+            custom_price = listing_info["price"]
 
             self.env["crm.listing.availability"].sudo().create(
                 {
                     "crm_lead_id": self.crm_lead_id.id,
                     "property_id": _prop.id,
                     "price": custom_price,
-                    "currency": self.price_list_id.currency_id.name,
+                    "currency": listing_info["currency"],
                     "no_nights": no_nights,
                     "total_price": no_nights * custom_price,
                 }
