@@ -36,25 +36,55 @@ class WizCrmLeadNewReservation(models.TransientModel):
         return action
 
     def action_check_availability(self):
-        guesty_listing_list = self.execute_availability_query()
-        _search_props = self.env["pms.property"].search(
-            [("guesty_id", "!=", False), ("guesty_id", "in", guesty_listing_list)]
+        # guesty_listing_list = self.execute_availability_query()
+        # _search_props = self.env["pms.property"].search(
+        #     [("guesty_id", "!=", False), ("guesty_id", "in", guesty_listing_list)]
+        # )
+        #
+        # calendar_result = self.env.company.guesty_backend_id.guesty_get_calendar_info(
+        #     self.check_in, self.check_out, _search_props
+        # )
+        #
+        # calendar = [
+        #     {"listing": key, "info": calendar_result[key]}
+        #     for key in calendar_result
+        #     if len(calendar_result[key]["status"]) == 1
+        #     and "available" in calendar_result[key]["status"]
+        # ]
+        #
+        # calendar_ids = [a["listing"] for a in calendar]
+        # _search_props = self.env["pms.property"].search(
+        #     [("guesty_id", "!=", False), ("guesty_id", "in", calendar_ids)]
+        # )
+
+        query = """
+        select t.* from (
+            select min(id) as id, listing_id, state, count(*) as "count",
+                min(listing_date) as start_date, max(listing_date) as end_date from (
+            select id, listing_id, state, listing_date,
+            date(listing_date) - row_number() over (partition by listing_id,
+                state order by date(listing_date)) * interval '1 day' "filter"
+            from pms_guesty_calendar pgc
+            where pgc.listing_date between %(checkin)s and %(checkout)s
+            ) t1
+            group by listing_id, state, filter
+            order by listing_id, min(listing_date)
+        ) as t
+        where t.state = 'available'
+        and t.start_date >= %(checkin)s and t.end_date <= %(checkout)s
+        """
+
+        self.env.cr.execute(
+            query, {"checkin": self.check_in, "checkout": self.check_out}
         )
+        results = self.env.cr.dictfetchall()
 
-        calendar_result = self.env.company.guesty_backend_id.guesty_get_calendar_info(
-            self.check_in, self.check_out, _search_props
-        )
+        _log.info(results)
 
-        calendar = [
-            {"listing": key, "info": calendar_result[key]}
-            for key in calendar_result
-            if len(calendar_result[key]["status"]) == 1
-            and "available" in calendar_result[key]["status"]
-        ]
+        guesty_ids = [a["listing_id"] for a in results]
 
-        calendar_ids = [a["listing"] for a in calendar]
         _search_props = self.env["pms.property"].search(
-            [("guesty_id", "!=", False), ("guesty_id", "in", calendar_ids)]
+            [("guesty_id", "in", guesty_ids)]
         )
 
         self.env["crm.listing.availability"].sudo().search(
@@ -75,7 +105,7 @@ class WizCrmLeadNewReservation(models.TransientModel):
             )
 
             # noinspection PyProtectedMember
-            _product._compute_product_price()
+            _product.with_context(price_source="local")._compute_product_price()
             custom_price = _product.price
 
             self.env["crm.listing.availability"].sudo().create(
@@ -93,34 +123,6 @@ class WizCrmLeadNewReservation(models.TransientModel):
         action = self.crm_lead_id.action_new_quotation_reservation()
         action["res_id"] = self.id
         return action
-
-    def execute_availability_query(self):
-        query = """
-        select count(*)     as no_states,
-               t.listing_id,
-               min(t.state) as first_state,
-               max(t.state) as last_state
-        from (
-                 select calendar.listing_id, calendar.state
-                 from pms_guesty_calendar calendar
-                 where calendar.listing_date between %(check_in)s and %(check_out)s
-                 group by calendar.listing_id, calendar.state
-             ) as t
-        group by t.listing_id
-                """
-
-        real_end_date = self.check_out - datetime.timedelta(days=1)
-        data = {"check_in": self.check_in, "check_out": real_end_date}
-        self.env.cr.execute(query, data)
-        res = self.env.cr.dictfetchall()
-
-        return [
-            a["listing_id"]
-            for a in res
-            if a["no_states"] == 1
-            and a["first_state"] == "available"
-            and a["last_state"] == "available"
-        ]
 
     @staticmethod
     def compute_default_ci_co(date_input, time_input):
