@@ -70,17 +70,18 @@ class GuestyController(http.Controller):
         return {"success": True}
 
     @http.route(
-        "/guesty/webhook/<model('backend.guesty'):connector>",
+        "/guesty/webhook/<int:backend_id>",
         methods=["POST"],
         auth="public",
         csrf=False,
         type="json",
     )
-    def webhook(self, connector):
+    def webhook(self, backend_id):
+        connector = request.env["backend.guesty"].sudo().browse(backend_id)
         data = request.jsonrequest
         if data.get("event") == "listing.calendar.updated":
             # do actions for calendars
-            request.env["pms.guesty.calendar"].with_company(
+            request.env["pms.guesty.calendar"].sudo().with_company(
                 connector.company_id
             ).with_delay().do_calendar_update(data)
         return True
