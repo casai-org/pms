@@ -63,26 +63,8 @@ class ProductProduct(models.Model):
 
             prices = [calendar.get("price", 0.0) for calendar in dates_list]
             avg_price = sum(prices) / len(prices)
-
             currency_name = dates_list[0]["currency"]
-            currency_id = (
-                self.env["res.currency"]
-                .sudo()
-                .search([("name", "=", currency_name)], limit=1)
-            )
 
-            if not currency_id:
-                currency_id = self.sudo().env.ref("base.USD", raise_if_not_found=False)
-
-            # noinspection PyProtectedMember
-            price_currency = currency_id._convert(
-                avg_price,
-                self.currency_id,
-                self.env.company,
-                reservation_date,
-            )
-
-            return price_currency
         else:
             query = """
                 select avg(price) as price, min(currency) as currency
@@ -92,4 +74,29 @@ class ProductProduct(models.Model):
 
             self.env.cr.execute(query, {"listing_id": property_id.guesty_id})
             result = self.env.cr.dictfetchone()
-            return result["price"]
+
+            if not result:
+                return None
+
+            currency_name = result["currency"]
+            avg_price = result["price"]
+
+        # compute currency convertion
+        currency_id = (
+            self.env["res.currency"]
+            .sudo()
+            .search([("name", "=", currency_name)], limit=1)
+        )
+
+        if not currency_id:
+            currency_id = self.sudo().env.ref("base.USD", raise_if_not_found=False)
+
+        # noinspection PyProtectedMember
+        price_currency = currency_id._convert(
+            avg_price,
+            self.currency_id,
+            self.env.company,
+            reservation_date,
+        )
+
+        return price_currency

@@ -76,11 +76,5 @@ class GuestyController(http.Controller):
         data = request.jsonrequest
         if data.get("event") == "listing.calendar.updated":
             # do actions for calendars
-            self.do_calendar_update(data)
-
-    def do_calendar_update(self, payload):
-        calendar_dates = payload.get("calendar", [])
-        for calendar in calendar_dates:
-            request.env[
-                "pms.guesty.calendar"
-            ].sudo().with_delay().guesty_pull_calendar_event(calendar)
+            request.env["pms.guesty.calendar"].with_delay().do_calendar_update(data)
+        return True
