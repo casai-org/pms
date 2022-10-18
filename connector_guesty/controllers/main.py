@@ -36,22 +36,19 @@ class GuestyController(http.Controller):
         backend = company.guesty_backend_id
         if not backend:
             raise ValidationError(_("No backend was defined"))
+
         return company, backend
 
-    @http.route(
-        "/guesty/reservations_webhook",
-        methods=["POST"],
-        auth="public",
-        csrf=False,
-        type="json",
-    )
-    def reservations_webhook(self, **data):
+    @http.route('/guesty/<model("backend.guesty"):connector>')
+    def reservations_webhook(self, connector):
         reservation_info, event_name = standardize_request_data(request.jsonrequest)
         if event_name not in ["reservation.new", "reservation.updated"]:
             raise ValidationError(_("Invalid event name {}".format(event_name)))
 
         reservation_model = request.env["pms.guesty.reservation"].sudo()
-        reservation_model.with_delay(10).pull_reservation(reservation_info)
+        reservation_model.with_delay(eta=10).pull_reservation(
+            connector, reservation_info
+        )
         return {"success": True}
 
     @http.route(
