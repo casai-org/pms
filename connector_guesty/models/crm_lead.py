@@ -60,7 +60,7 @@ class CrmLead(models.Model):
         wizard_enabled = self.env["ir.config_parameter"].get_param(
             "quotation_reservation_enabled", "0"
         )
-        _log.info(wizard_enabled)
+
         if self.partner_id and wizard_enabled == "1":
             action = self.action_new_quotation_reservation()
             action["context"] = {}
@@ -68,7 +68,7 @@ class CrmLead(models.Model):
             action["context"]["default_check_in"] = datetime.datetime.today()
             action["context"]["default_check_out"] = datetime.datetime.today()
             return action
-        # ============ DEPRECATED ===========
+
         return super().action_new_quotation()
 
     def action_new_quotation_reservation(self):
