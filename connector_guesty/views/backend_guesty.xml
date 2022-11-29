@@ -150,6 +150,9 @@
                                 </tree>
                             </field>
                         </page>
+                        <page string="Sales">
+                            <field name="workflow_process_id" />
+                        </page>
                     </notebook>
                 </sheet>
             </form>
