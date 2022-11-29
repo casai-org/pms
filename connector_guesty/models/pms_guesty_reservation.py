@@ -61,7 +61,7 @@ class PmsGuestyReservation(models.Model):
             last_updatde_at__meta = meta["lastUpdatedAt"]
             last_updated_at__info = reservation_info["lastUpdatedAt"]
             if last_updated_at__info > last_updatde_at__meta:
-                self.with_delay(10).pull_reservation(reservation_info)
+                self.with_delay(eta=10).pull_reservation(reservation_info)
 
         return reservation
 
@@ -71,6 +71,10 @@ class PmsGuestyReservation(models.Model):
             .sudo()
             .guesty_pull_reservation(self._get_json_meta(), "reservation.update")
         )
+
+        if not pms_reservation_id:
+            self.write({"is_updated": True})
+            return
 
         _log.info("Guesty Reservation Pulled: {}".format(pms_reservation_id))
 

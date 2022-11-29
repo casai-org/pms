@@ -1,5 +1,21 @@
 <odoo>
-
+    <record id="form_view_guesty_backend_credentials" model="ir.ui.view">
+        <field name="name">Backend Credentials</field>
+        <field name="model">backend.guesty.credentials</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="guesty_environment" />
+                        <field name="auth_type" />
+                        <field name="api_key" />
+                        <field name="api_secret" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
     <record id="form_view_guesty_connector_backend" model="ir.ui.view">
         <field name="name">Guesty Backend</field>
         <field name="model">backend.guesty</field>
@@ -50,23 +66,7 @@
                     </div>
                     <group>
                         <group>
-                            <field
-                                name="guesty_environment"
-                                attrs="{'readonly': [('active', '=', True)]}"
-                            />
-                            <field
-                                name="auth_type"
-                                attrs="{'readonly': [('active', '=', True)]}"
-                            />
-                            <field
-                                name="api_key"
-                                attrs="{'readonly': [('active', '=', True)]}"
-                            />
-                            <field
-                                name="api_secret"
-                                password="1"
-                                attrs="{'readonly': [('active', '=', True)]}"
-                            />
+                            <field name="credentials_id" />
                             <field name="is_default" readonly="1" />
                         </group>
                     </group>
@@ -75,8 +75,6 @@
                             <group>
                                 <group>
                                     <field name="guesty_account_id" readonly="1" />
-                                    <field name="api_url" readonly="1" />
-                                    <field name="base_url" readonly="1" />
                                 </group>
                             </group>
                         </page>
@@ -162,8 +160,6 @@
         <field name="arch" type="xml">
             <tree decoration-muted="(not active)">
                 <field name="name" />
-                <field name="api_url" />
-                <field name="base_url" />
                 <field name="active" />
             </tree>
         </field>

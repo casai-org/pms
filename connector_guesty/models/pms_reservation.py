@@ -335,6 +335,42 @@ class PmsReservation(models.Model):
         return success, reservation_info
 
     def guesty_pull_reservation(self, reservation_info, event_name):
+        # 1- locate listing on db and search for linked property
+        listing_id = self.env["pms.guesty.listing"].search(
+            [
+                ("external_id", "=", reservation_info["listingId"]),
+                ("active", "in", [True, False]),
+            ],
+            limit=1,
+        )
+
+        if not listing_id:
+            raise ValidationError(
+                _("Listing: {} Not found".format(reservation_info["listingId"]))
+            )
+
+        property_id = self.env["pms.property"].search(
+            [("guesty_listing_ids.id", "=", listing_id.id)], limit=1
+        )
+
+        if not property_id:
+            property_id = (
+                self.env["pms.property"]
+                .sudo()
+                .search([("guesty_id", "=", listing_id.external_id)], limit=1)
+            )
+
+        if not property_id:
+            raise ValidationError(
+                _("Property not found for listing: {}", format(listing_id.external_id))
+            )
+
+        self.with_company(property_id.company_id).with_delay(1).check_company()
+
+    def check_company(self):
+        _log.info(self.env.company)
+
+    def __guesty_pull_reservation(self, reservation_info, event_name):
         guesty_listing_id = reservation_info["listingId"]
         _log.info("Pulling reservation for listing {}".format(guesty_listing_id))
 
