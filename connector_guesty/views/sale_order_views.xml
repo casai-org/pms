@@ -128,15 +128,13 @@
                 <field name="currency_id" invisible="0" readonly="1" />
             </xpath>
             <xpath expr="//field[@name='partner_id']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'readonly': [('amount_total', '>', 0)]}</attribute>
+                <attribute name="attrs">{'readonly': [('amount_total', '>', 0)]}
+                </attribute>
                 <attribute name="force_save">True</attribute>
             </xpath>
             <xpath expr="//field[@name='pricelist_id']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'readonly': [('amount_total', '>', 0)]}</attribute>
+                <attribute name="attrs">{'readonly': [('amount_total', '>', 0)]}
+                </attribute>
                 <attribute name="force_save">True</attribute>
             </xpath>
         </field>
@@ -422,8 +420,7 @@
                 % endif
             </div>
         </field>
-        <field name="report_template" ref="sale.action_report_saleorder" />
-        <field name="report_name">${(object.name or '').replace('/','_')}</field>
+        <field name="report_template" eval="False" />
         <field name="lang">${object.partner_id.lang}</field>
         <field name="auto_delete" eval="True" />
     </record>
